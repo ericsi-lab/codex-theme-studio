@@ -13,10 +13,10 @@ Theme Studio for Codex 是一款自研、开源、默认无遥测的 ChatGPT 桌
 下面是官方 ChatGPT 桌面端中的真实注入截图，不是概念效果图。每套主题都提供完整的新建
 任务页和设置页样例；截图只隐藏账户身份，项目侧栏和应用结构均未裁切。
 
-| 万妖图录·龙渊灵姬（首推） | 万妖图录·琉璃莲梦 |
+| 万妖图录·龙渊灵姬（首推） | 太虚青玄 |
 |---|---|
-| ![龙渊灵姬真实新建任务页](docs/examples/real/wan-yao-longyuan-lingji/new-task.webp) | ![琉璃莲梦真实新建任务页](docs/examples/real/wan-yao-liuli-lianmeng/new-task.webp) |
-| ![龙渊灵姬真实设置页](docs/examples/real/wan-yao-longyuan-lingji/settings.webp) | ![琉璃莲梦真实设置页](docs/examples/real/wan-yao-liuli-lianmeng/settings.webp) |
+| ![龙渊灵姬真实新建任务页](docs/examples/real/wan-yao-longyuan-lingji/new-task.webp) | ![太虚青玄真实新建任务页](docs/examples/real/cosmic-taixu/new-task.webp) |
+| ![龙渊灵姬真实设置页](docs/examples/real/wan-yao-longyuan-lingji/settings.webp) | ![太虚青玄真实设置页](docs/examples/real/cosmic-taixu/settings.webp) |
 
 完整 18 套、36 张真实截图见 [真实应用效果](docs/REAL_EXAMPLES.md)。各主题目录里的
 `preview-light.jpg` / `preview-dark.jpg` 是设计预览稿，不作为真实应用效果证明。
@@ -39,23 +39,30 @@ Theme Studio for Codex 是一款自研、开源、默认无遥测的 ChatGPT 桌
 
 ## 安装
 
-对第一次使用的人，最简单的方式是在 Codex 新任务中粘贴本仓库链接，并说：
+对第一次使用的人，可以在允许本地命令和 GitHub 访问的 Codex 新任务中发送：
 
 ```text
 安装这个主题插件：https://github.com/ericsi-lab/codex-theme-studio
+如果尚未配置 Marketplace，请将 ericsi-lab/codex-theme-studio 的 main 分支添加为
+Codex Plugin Marketplace，再安装 codex-theme-studio。
+不要让我打开终端；需要重启 ChatGPT 时先询问我。
+安装后请告诉我：是否成功、启动器在哪里、是否必须打开，以及默认主题是否生效。
 ```
 
-Codex 会读取仓库说明、安装 Plugin 和本地运行时，并在需要重启应用前请求确认。这是
-Codex 代为执行的安装流程，不是浏览器链接本身具有静默安装权限。
+这是 Codex 代为添加 Marketplace、安装 Plugin 和本地运行时的代理流程，不是 GitHub
+链接本身具有静默安装权限；企业策略或本地审批可能阻止代理安装。确定性安装入口仍是
+Codex 的 Plugins Directory 或已配置的 Marketplace。
 
 也可以手动安装：在 Codex 的 Plugins 页面添加本仓库作为 Marketplace，安装
 **Theme Studio for Codex**，然后在新任务中说“安装主题”。
 
 Skill 会先运行安全检查。如果 Codex 没有开放仅本机可访问的调试端口，它会给出明确的重启指引；整个过程不需要管理员权限，也不会使用不透明的 `curl | sh`。
 
-首次安装还会创建 `~/Applications/Theme Studio for Codex.app`。用户可以从该启动器进入主题
-模式，也可以直接在对话里说“换成赤金财神”；如果 ChatGPT 是普通方式启动，Skill 会
-先请求一次重启授权，再自动完成安全重启，不要求用户打开终端。
+安装结果会明确反馈 Plugin/运行时状态、启动器位置、是否必须打开以及下一步操作。首次
+安装还会创建可选的 `~/Applications/Theme Studio for Codex.app`：它不是常驻主题软件，
+只负责安全启动官方 ChatGPT 的主题模式。首次成功启用会自动应用
+**万妖图录·龙渊灵姬**；以后打开启动器会恢复用户当前选择，不会覆盖用户主动恢复的
+原始界面。也可以在对话里确认重启，无需打开启动器或终端。
 
 升级自旧版本时，只会迁移带有本项目管理标记的 `Codex Theme Studio.app`；同名但不属于
 本项目的 App 不会被覆盖或删除。用户主题、图片和当前配置仍保存在原数据目录中。
@@ -96,9 +103,9 @@ my-theme/
 
 公开 schema、特效字段、路径与尺寸限制见 [Theme format](docs/THEME_FORMAT.md)。用户主题位于 `~/Library/Application Support/CodexThemeStudio/themes/`，升级时不会被覆盖。
 
-“万妖图录”是六套用户授权主题组成的系列，首推 `万妖图录·龙渊灵姬`。这里的“首推”
-表示 README 和首次浏览时优先展示，不会在安装后静默换肤；正式应用仍由用户通过预览
-或自然语言切换确认。
+“万妖图录”是六套用户授权主题组成的系列，默认主题为 `万妖图录·龙渊灵姬`。安装本身
+不会修改界面；用户确认首次启用主题模式后才会自动应用。若用户首次已经明确选择其他
+主题，则以用户选择为准。默认主题只自动应用一次，不会覆盖后续选择或“恢复默认界面”。
 
 ## 兼容标识
 

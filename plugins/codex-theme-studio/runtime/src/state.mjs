@@ -4,7 +4,9 @@ import { DAEMON_FILE, STATE_FILE } from './config.mjs';
 
 const EMPTY_STATE = Object.freeze({
   version: 1,
+  onboardingVersion: 0,
   activeTheme: null,
+  defaultThemeApplied: false,
   demoMode: false,
   updatedAt: null,
 });
@@ -46,4 +48,3 @@ export async function writeDaemon(value) {
 export async function removeDaemonFile() {
   await fs.rm(DAEMON_FILE, { force: true });
 }
-

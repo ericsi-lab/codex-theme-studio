@@ -1,6 +1,6 @@
 {
   "name": "codex-theme-studio",
-  "version": "0.1.0+codex.20260718153545",
+  "version": "0.1.0+codex.20260719024500",
   "description": "Generate, import, preview, switch, verify, and restore local Codex themes on macOS.",
   "author": {
     "name": "Theme Studio for Codex contributors"

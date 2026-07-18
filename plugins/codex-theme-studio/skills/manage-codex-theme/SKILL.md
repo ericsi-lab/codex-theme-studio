@@ -10,22 +10,29 @@ Use the bundled deterministic command wrapper for every state-changing action. D
 ## Workflow
 
 1. Identify the requested operation and confirm macOS support. Windows is not supported in v0.1.0.
-2. For first use, run `scripts/cts install`, then `scripts/cts doctor`. The runtime
+2. For first use, run `scripts/cts install` and report its structured `onboarding` result in plain
+   language: Plugin/runtime status, optional launcher path, whether opening it is required, the
+   featured first theme, and the next action. Then run `scripts/cts doctor`. The runtime
    recognizes the official Codex-to-ChatGPT migration automatically and caches the identity result
    for that unchanged desktop-app build; do not ask the user to run codesign or reinstall on every
    command.
 3. If doctor reports `CDP_UNAVAILABLE`, `CDP_PROCESS_MISMATCH`, or `APP_NOT_RUNNING`, explain that
    ChatGPT needs one theme-mode restart and obtain explicit user confirmation. After confirmation,
-   run `scripts/cts enable --confirmed`, then continue the requested preview or apply. Do not
-   make the user type a Terminal command. Never bind CDP to a non-loopback address.
-4. Run the closest command below. Report the theme name, result, and recovery status in plain language.
-5. After apply, switch, or preview, run `scripts/cts verify`. If verification fails, immediately run `scripts/cts restore` and report the failure without retry loops.
+   run `scripts/cts enable --confirmed`. Add `--theme THEME_ID` when the user already requested a
+   specific theme; otherwise the first activation applies 万妖图录·龙渊灵姬. Do not make the user
+   type a Terminal command. Never bind CDP to a non-loopback address.
+4. If doctor is already healthy after a fresh install, apply the user's requested theme or
+   `wan-yao-longyuan-lingji` immediately. The launcher is optional; opening it performs the same
+   consented enable-and-apply flow and never stays resident.
+5. Run the closest command below. Report the theme name, result, and recovery status in plain language.
+6. After apply, switch, or preview, run `scripts/cts verify`. If verification fails, immediately run `scripts/cts restore` and report the failure without retry loops.
 
 ## Commands
 
 ```sh
 scripts/cts install
 scripts/cts enable --confirmed
+scripts/cts enable --confirmed --theme THEME_ID
 scripts/cts doctor
 scripts/cts compatibility
 scripts/cts list

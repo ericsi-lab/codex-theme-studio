@@ -9,6 +9,8 @@ import {
   DEFAULT_ART,
   DEFAULT_COLORS,
   DEFAULT_EFFECTS,
+  DEFAULT_THEME_ID,
+  DEFAULT_THEME_NAME,
   INSTALL_ROOT,
   LAUNCHER_ICON,
   LAUNCHER_ICON_FILE_NAME,
@@ -34,7 +36,7 @@ import {
 } from './adapter.mjs';
 import { withCodexPages } from './cdp.mjs';
 import { fail } from './errors.mjs';
-import { doctor } from './system.mjs';
+import { doctor, enableThemeMode } from './system.mjs';
 import { findTheme, listThemes, loadTheme } from './theme.mjs';
 import { readDaemon, readState, removeDaemonFile, updateState, writeDaemon } from './state.mjs';
 
@@ -44,7 +46,7 @@ const WATCHER_SCRIPT = path.join(INSTALL_ROOT, 'runtime/bin/theme-watcher.sh');
 const RUNTIME_LOG = path.join(LOG_DIR, 'runtime.log');
 const WATCH_VERIFY_ATTEMPTS = 8;
 const WATCH_VERIFY_DELAY_MS = 250;
-const LAUNCHER_BUNDLE_IDENTIFIER = 'io.github.fei-away.theme-studio-for-codex.launcher';
+export const LAUNCHER_BUNDLE_IDENTIFIER = 'io.github.ericsi-lab.theme-studio-for-codex.launcher';
 const LAUNCHER_BUILD_VERSION = String(
   VERSION.split('.').map(Number).reduce((build, part) => (build * 1_000) + part, 0),
 );
@@ -82,12 +84,12 @@ function appleScriptString(value) {
 export function launcherAppleScript(command) {
   return [
     'on run',
-    '  display dialog "将安全重启 ChatGPT 或旧版 Codex，并启用本机主题模式。不会修改官方应用。" buttons {"取消", "启用主题模式"} default button "启用主题模式" with title "Theme Studio for Codex"',
+    `  display dialog "将安全重启 ChatGPT 或旧版 Codex，并启用本机主题模式。首次启用会自动应用《${DEFAULT_THEME_NAME}》，以后会保留你的选择。不会修改官方应用。" buttons {"取消", "启用主题模式"} default button "启用主题模式" with title "Theme Studio for Codex"`,
     '  try',
     `    do shell script quoted form of "${appleScriptString(command)}" & " enable --confirmed"`,
-    '    display notification "现在可以在官方桌面应用中说：换成赤金财神" with title "主题模式已启用"',
+    `    display notification "主题模式已启用。新安装会应用${DEFAULT_THEME_NAME}；已有选择或原始界面保持不变。" with title "Theme Studio for Codex"`,
     '  on error',
-    '    display dialog "启用失败。请回到官方桌面应用说“检查主题”。" buttons {"好"} default button "好" with title "Theme Studio for Codex"',
+    '    display dialog "启用失败。请回到官方桌面应用说：检查主题。" buttons {"好"} default button "好" with title "Theme Studio for Codex"',
     '  end try',
     'end run',
     '',
@@ -256,12 +258,42 @@ async function installLauncher() {
 }
 
 export async function install() {
+  const previousState = await readState();
   await ensureDataDirectories();
   await copyRuntime();
   await syncPresets();
   const launcher = await installLauncher();
-  await updateState({ installedVersion: VERSION });
-  return { ok: true, version: VERSION, installRoot: INSTALL_ROOT, dataRoot: DATA_ROOT, launcher };
+  const freshInstall = !previousState.installedVersion;
+  const legacyInstallation = Boolean(previousState.installedVersion)
+    && previousState.onboardingVersion < 1;
+  const nextState = await updateState({
+    installedVersion: VERSION,
+    onboardingVersion: 1,
+    // Existing users keep their current/restored appearance after an upgrade. Only a genuinely
+    // fresh installation receives the featured theme on its first theme-mode activation.
+    ...(freshInstall ? { defaultThemeApplied: false } : {}),
+    ...(legacyInstallation ? { defaultThemeApplied: true } : {}),
+  });
+  return {
+    ok: true,
+    version: VERSION,
+    installRoot: INSTALL_ROOT,
+    dataRoot: DATA_ROOT,
+    launcher,
+    onboarding: {
+      freshInstall,
+      launcherRequired: false,
+      launcherDisplayPath: `~/Applications/${path.basename(LAUNCHER_APP)}`,
+      defaultTheme: {
+        id: DEFAULT_THEME_ID,
+        name: DEFAULT_THEME_NAME,
+        appliesOnFirstThemeModeActivation: !nextState.defaultThemeApplied && !nextState.activeTheme,
+      },
+      nextAction: launcher.installed
+        ? `Open ~/Applications/${path.basename(LAUNCHER_APP)} once, or approve theme mode in this task.`
+        : 'Approve theme mode in this task; no Terminal command is required.',
+    },
+  };
 }
 
 export async function availableThemes() {
@@ -433,6 +465,68 @@ export async function startDaemon() {
   return { pid: child.pid };
 }
 
+/**
+ * Selects the theme that should be restored or applied when theme mode starts.
+ *
+ * A theme explicitly requested by the user always wins. Otherwise an existing active theme is
+ * restored. The featured default is selected only once for a fresh installation; after the user
+ * restores the original appearance, later launcher opens must not silently reapply it.
+ *
+ * @param {object} state Persisted local theme state; missing optional fields use safe defaults.
+ * @param {string|null} requestedThemeId Theme chosen in the current user request, if any.
+ * @returns {{id: string, source: 'requested'|'active'|'default'}|null} Activation target or null
+ * when theme mode should start without applying a theme.
+ */
+export function activationThemeForState(state, requestedThemeId = null) {
+  if (requestedThemeId) return { id: requestedThemeId, source: 'requested' };
+  if (state?.activeTheme) return { id: state.activeTheme, source: 'active' };
+  if (!state?.defaultThemeApplied) return { id: DEFAULT_THEME_ID, source: 'default' };
+  return null;
+}
+
+/**
+ * Enables loopback-only theme mode and restores the user's theme in one deterministic command.
+ *
+ * The launcher uses this operation so first use cannot stop at “ChatGPT reopened but no theme was
+ * applied”. A requested theme bypasses the featured default, while a fresh install with no choice
+ * receives 万妖图录·龙渊灵姬 exactly once. Apply/verify failures retain the existing rollback
+ * behavior and do not consume the one-time default.
+ *
+ * @param {{confirmed?: boolean, requestedThemeId?: string|null}} options Restart consent and an
+ * optional theme ID resolved from the user's current request.
+ * @returns {Promise<object>} Sanitized runtime and applied-theme status for user-facing feedback.
+ */
+export async function activateThemeMode({ confirmed = false, requestedThemeId = null } = {}) {
+  // Validate an explicit choice before restarting the desktop app so a typo cannot cause an
+  // unnecessary interruption and then fail only after ChatGPT returns.
+  if (requestedThemeId && !TEST_MODE) {
+    await findTheme(requestedThemeId, { loadImage: false });
+  }
+  const runtime = await enableThemeMode({ confirmed });
+  const state = await readState();
+  const target = activationThemeForState(state, requestedThemeId);
+  if (!target || TEST_MODE) {
+    return {
+      ...runtime,
+      theme: null,
+      originalAppearancePreserved: !target,
+      defaultTheme: target?.source === 'default'
+        ? { id: DEFAULT_THEME_ID, name: DEFAULT_THEME_NAME, pending: true }
+        : null,
+    };
+  }
+
+  const applied = await applyTheme(target.id);
+  return {
+    ...runtime,
+    theme: applied.theme,
+    pages: applied.pages,
+    watcher: applied.watcher,
+    defaultThemeApplied: target.source === 'default',
+    restoredActiveTheme: target.source === 'active',
+  };
+}
+
 export async function applyTheme(id, { daemon = true } = {}) {
   const theme = await findTheme(id);
   const state = await readState();
@@ -445,7 +539,9 @@ export async function applyTheme(id, { daemon = true } = {}) {
     await updateState({ activeTheme: null, demoMode: false });
     throw error;
   }
-  await updateState({ activeTheme: theme.id });
+  // Any permanent user choice consumes the one-time featured default. A later restore therefore
+  // remains respected instead of causing the launcher to reapply 龙渊灵姬 on its next open.
+  await updateState({ activeTheme: theme.id, defaultThemeApplied: true });
   const watcher = daemon ? await startDaemon() : null;
   return { ok: true, theme: { id: theme.id, name: theme.name }, pages: pages.length, watcher };
 }
