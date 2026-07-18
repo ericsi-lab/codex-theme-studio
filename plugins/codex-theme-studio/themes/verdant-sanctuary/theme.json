@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "verdant-sanctuary",
+  "name": "森光秘境",
+  "appearance": "dark",
+  "image": "background.png",
+  "colors": { "accent": "#91D89E", "surface": "#09201BE3", "text": "#F4FBF5", "mutedText": "#B5CFB9", "overlay": "#0717126B" },
+  "art": { "focusX": 0.82, "focusY": 0.47, "safeArea": 0.56, "safeSide": "left", "homeMode": "hero", "taskMode": "ambient" }
+}

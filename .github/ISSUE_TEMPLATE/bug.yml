@@ -1,0 +1,36 @@
+name: Bug report
+description: Report a reproducible Theme Studio for Codex problem without private task data.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not paste prompts, task history, credentials, usernames, or full local paths.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: operation
+    attributes:
+      label: Operation
+      options: [install, doctor, import, preview, apply, switch, verify, restore, update, demo-mode, uninstall]
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Replace private names and paths with neutral examples.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and actual result
+    validations:
+      required: true
+

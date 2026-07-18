@@ -1,0 +1,23 @@
+{
+  "name": "codex-theme-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A self-developed, open-source theme manager for Codex on macOS.",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "validate:themes": "node tools/validate-themes.mjs",
+    "benchmark:loader": "node --expose-gc tools/benchmark-theme-loading.mjs",
+    "benchmark:app": "node tools/measure-app-performance.mjs",
+    "capture:samples": "node tools/capture-real-samples.mjs",
+    "audit:release": "node tools/audit-release.mjs",
+    "check:compatibility": "node plugins/codex-theme-studio/runtime/src/cli.mjs compatibility",
+    "render:cards": "python3 marketing/render_cards_pillow.py",
+    "render:cards:html": "node marketing/render-cards.mjs",
+    "package": "bash tools/package-release.sh"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT"
+}

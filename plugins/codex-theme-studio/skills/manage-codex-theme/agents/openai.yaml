@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manage Codex Theme"
+  short_description: "Generate, preview, verify, and restore Codex themes"
+  default_prompt: "Use $manage-codex-theme to generate an original background, preview it safely, and apply it after I confirm."

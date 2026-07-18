@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "fortune-guardian",
+  "name": "赤金财神",
+  "appearance": "auto",
+  "image": "background.png",
+  "colors": {
+    "accent": "#E5B75A",
+    "surface": "#28120DE6",
+    "text": "#FFF8E8",
+    "mutedText": "#E8D1AA",
+    "overlay": "#240B0666"
+  },
+  "art": {
+    "focusX": 0.84,
+    "focusY": 0.48,
+    "safeArea": 0.57,
+    "safeSide": "left",
+    "homeMode": "hero",
+    "taskMode": "ambient"
+  },
+  "effects": {
+    "preset": "glow",
+    "intensity": 0.18,
+    "motion": true
+  }
+}

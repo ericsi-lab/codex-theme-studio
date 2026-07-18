@@ -1,0 +1,26 @@
+name: Feature request
+description: Propose a focused product or theme improvement.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: What is difficult today, and for whom?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: checkboxes
+    id: clean-room
+    attributes:
+      label: Originality
+      options:
+        - label: This proposal does not require copied third-party code, assets, copy, UI, or repository structure.
+          required: true
+

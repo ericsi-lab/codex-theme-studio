@@ -1,0 +1,35 @@
+{
+  "name": "codex-theme-studio",
+  "version": "0.1.0+codex.20260718153545",
+  "description": "Generate, import, preview, switch, verify, and restore local Codex themes on macOS.",
+  "author": {
+    "name": "Theme Studio for Codex contributors"
+  },
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "openai-codex",
+    "codex-desktop",
+    "codex-theme",
+    "codex-plugin"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Theme Studio for Codex",
+    "shortDescription": "Create and apply local, reversible Codex themes.",
+    "longDescription": "A self-developed, open-source theme manager for macOS with natural-language generation, twelve bundled presets, safe preview, automatic rollback, low-power effects, and no telemetry.",
+    "developerName": "Theme Studio for Codex contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Natural-language themes",
+      "Safe preview",
+      "One-click restore"
+    ],
+    "brandColor": "#72D6C9",
+    "defaultPrompt": [
+      "Generate an original Nezha background and preview it safely.",
+      "Preview the \u8d64\u91d1\u8d22\u795e theme for 30 seconds.",
+      "Restore the original Codex appearance."
+    ]
+  }
+}

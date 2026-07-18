@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "dawn-monkey-king",
+  "name": "破晓齐天",
+  "appearance": "auto",
+  "image": "background.png",
+  "colors": {
+    "accent": "#F0A14B",
+    "surface": "#25130DE6",
+    "text": "#FFF7E9",
+    "mutedText": "#E6C6A4",
+    "overlay": "#1B0D0866"
+  },
+  "art": {
+    "focusX": 0.84,
+    "focusY": 0.5,
+    "safeArea": 0.56,
+    "safeSide": "left",
+    "homeMode": "hero",
+    "taskMode": "ambient"
+  },
+  "effects": {
+    "preset": "embers",
+    "intensity": 0.16,
+    "motion": true
+  }
+}

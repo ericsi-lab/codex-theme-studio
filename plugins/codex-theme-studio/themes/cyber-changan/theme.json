@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "cyber-changan",
+  "name": "赛博长安",
+  "appearance": "dark",
+  "image": "background.png",
+  "colors": { "accent": "#7B8CFF", "surface": "#0A1222E3", "text": "#F4F6FF", "mutedText": "#ADB9D2", "overlay": "#07101D6B" },
+  "art": { "focusX": 0.84, "focusY": 0.52, "safeArea": 0.58, "safeSide": "left", "homeMode": "hero", "taskMode": "ambient" }
+}

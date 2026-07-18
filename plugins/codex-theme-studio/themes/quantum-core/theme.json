@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "quantum-core",
+  "name": "量子星核",
+  "appearance": "dark",
+  "image": "background.png",
+  "colors": { "accent": "#45B7FF", "surface": "#040B18E3", "text": "#F2F8FF", "mutedText": "#A9C3DC", "overlay": "#02071370" },
+  "art": { "focusX": 0.79, "focusY": 0.49, "safeArea": 0.55, "safeSide": "left", "homeMode": "hero", "taskMode": "ambient" }
+}

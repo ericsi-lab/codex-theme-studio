@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "clockwork-fox-spirit",
+  "name": "机关狐灵",
+  "appearance": "dark",
+  "image": "background.png",
+  "colors": {
+    "accent": "#63C7AE",
+    "surface": "#071C20E8",
+    "text": "#F1FBF8",
+    "mutedText": "#B6D2CB",
+    "overlay": "#04141670"
+  },
+  "art": {
+    "focusX": 0.82,
+    "focusY": 0.49,
+    "safeArea": 0.57,
+    "safeSide": "left",
+    "homeMode": "hero",
+    "taskMode": "ambient"
+  },
+  "effects": {
+    "preset": "glow",
+    "intensity": 0.14,
+    "motion": true
+  }
+}

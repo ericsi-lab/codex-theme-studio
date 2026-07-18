@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "lotus-fire-nezha",
+  "name": "莲火哪吒",
+  "appearance": "dark",
+  "image": "background.png",
+  "colors": {
+    "accent": "#FF6A62",
+    "surface": "#111536E8",
+    "text": "#FFF5F5",
+    "mutedText": "#D7C2D7",
+    "overlay": "#080B286E"
+  },
+  "art": {
+    "focusX": 0.84,
+    "focusY": 0.48,
+    "safeArea": 0.58,
+    "safeSide": "left",
+    "homeMode": "hero",
+    "taskMode": "ambient"
+  },
+  "effects": {
+    "preset": "petals",
+    "intensity": 0.18,
+    "motion": true
+  }
+}

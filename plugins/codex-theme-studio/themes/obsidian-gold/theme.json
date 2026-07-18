@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "obsidian-gold",
+  "name": "黑金环域",
+  "appearance": "dark",
+  "image": "background.png",
+  "colors": { "accent": "#F2B75E", "surface": "#100D09E6", "text": "#FFF8EA", "mutedText": "#D0BEA2", "overlay": "#0A070470" },
+  "art": { "focusX": 0.82, "focusY": 0.49, "safeArea": 0.56, "safeSide": "left", "homeMode": "hero", "taskMode": "ambient" }
+}

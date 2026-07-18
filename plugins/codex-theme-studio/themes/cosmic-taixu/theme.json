@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "cosmic-taixu",
+  "name": "太虚青玄",
+  "appearance": "dark",
+  "image": "background.png",
+  "colors": { "accent": "#42D6D1", "surface": "#050C0EE6", "text": "#F2FBFA", "mutedText": "#A9C9C6", "overlay": "#03090A70" },
+  "art": { "focusX": 0.83, "focusY": 0.5, "safeArea": 0.57, "safeSide": "left", "homeMode": "hero", "taskMode": "ambient" }
+}

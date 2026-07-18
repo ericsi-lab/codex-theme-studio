@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "star-river-spirit",
+  "name": "星河灵姬",
+  "appearance": "dark",
+  "image": "background.png",
+  "colors": {
+    "accent": "#A997FF",
+    "surface": "#090D2AE8",
+    "text": "#F8F6FF",
+    "mutedText": "#C6C0E2",
+    "overlay": "#05071E70"
+  },
+  "art": {
+    "focusX": 0.84,
+    "focusY": 0.46,
+    "safeArea": 0.59,
+    "safeSide": "left",
+    "homeMode": "hero",
+    "taskMode": "ambient"
+  },
+  "effects": {
+    "preset": "stars",
+    "intensity": 0.15,
+    "motion": true
+  }
+}

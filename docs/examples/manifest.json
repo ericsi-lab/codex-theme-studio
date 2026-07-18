@@ -1,0 +1,200 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-18T16:37:44.364Z",
+  "captureMethod": "Official ChatGPT desktop renderer through loopback-only CDP",
+  "privacy": "Full-window new-task/settings capture; only account identity is masked",
+  "themes": {
+    "fortune-guardian": {
+      "name": "赤金财神",
+      "appearance": "auto",
+      "views": {
+        "new-task": {
+          "file": "real/fortune-guardian/new-task.webp",
+          "width": 2170,
+          "height": 1281
+        },
+        "settings": {
+          "file": "real/fortune-guardian/settings.webp",
+          "width": 2170,
+          "height": 1281
+        }
+      }
+    },
+    "obsidian-gold": {
+      "name": "黑金环域",
+      "appearance": "dark",
+      "views": {
+        "new-task": {
+          "file": "real/obsidian-gold/new-task.webp",
+          "width": 2170,
+          "height": 1281
+        },
+        "settings": {
+          "file": "real/obsidian-gold/settings.webp",
+          "width": 2170,
+          "height": 1281
+        }
+      }
+    },
+    "clockwork-fox-spirit": {
+      "name": "机关狐灵",
+      "appearance": "dark",
+      "views": {
+        "new-task": {
+          "file": "real/clockwork-fox-spirit/new-task.webp",
+          "width": 2170,
+          "height": 1281
+        },
+        "settings": {
+          "file": "real/clockwork-fox-spirit/settings.webp",
+          "width": 2170,
+          "height": 1281
+        }
+      }
+    },
+    "aurora-glass": {
+      "name": "极光穹顶",
+      "appearance": "dark",
+      "views": {
+        "new-task": {
+          "file": "real/aurora-glass/new-task.webp",
+          "width": 2170,
+          "height": 1281
+        },
+        "settings": {
+          "file": "real/aurora-glass/settings.webp",
+          "width": 2170,
+          "height": 1281
+        }
+      }
+    },
+    "lotus-fire-nezha": {
+      "name": "莲火哪吒",
+      "appearance": "dark",
+      "views": {
+        "new-task": {
+          "file": "real/lotus-fire-nezha/new-task.webp",
+          "width": 2170,
+          "height": 1281
+        },
+        "settings": {
+          "file": "real/lotus-fire-nezha/settings.webp",
+          "width": 2170,
+          "height": 1281
+        }
+      }
+    },
+    "quantum-core": {
+      "name": "量子星核",
+      "appearance": "dark",
+      "views": {
+        "new-task": {
+          "file": "real/quantum-core/new-task.webp",
+          "width": 2170,
+          "height": 1281
+        },
+        "settings": {
+          "file": "real/quantum-core/settings.webp",
+          "width": 2170,
+          "height": 1281
+        }
+      }
+    },
+    "dawn-monkey-king": {
+      "name": "破晓齐天",
+      "appearance": "auto",
+      "views": {
+        "new-task": {
+          "file": "real/dawn-monkey-king/new-task.webp",
+          "width": 2170,
+          "height": 1281
+        },
+        "settings": {
+          "file": "real/dawn-monkey-king/settings.webp",
+          "width": 2170,
+          "height": 1281
+        }
+      }
+    },
+    "cyber-changan": {
+      "name": "赛博长安",
+      "appearance": "dark",
+      "views": {
+        "new-task": {
+          "file": "real/cyber-changan/new-task.webp",
+          "width": 2170,
+          "height": 1281
+        },
+        "settings": {
+          "file": "real/cyber-changan/settings.webp",
+          "width": 2170,
+          "height": 1281
+        }
+      }
+    },
+    "verdant-sanctuary": {
+      "name": "森光秘境",
+      "appearance": "dark",
+      "views": {
+        "new-task": {
+          "file": "real/verdant-sanctuary/new-task.webp",
+          "width": 2170,
+          "height": 1281
+        },
+        "settings": {
+          "file": "real/verdant-sanctuary/settings.webp",
+          "width": 2170,
+          "height": 1281
+        }
+      }
+    },
+    "cosmic-taixu": {
+      "name": "太虚青玄",
+      "appearance": "dark",
+      "views": {
+        "new-task": {
+          "file": "real/cosmic-taixu/new-task.webp",
+          "width": 2170,
+          "height": 1281
+        },
+        "settings": {
+          "file": "real/cosmic-taixu/settings.webp",
+          "width": 2170,
+          "height": 1281
+        }
+      }
+    },
+    "star-river-spirit": {
+      "name": "星河灵姬",
+      "appearance": "dark",
+      "views": {
+        "new-task": {
+          "file": "real/star-river-spirit/new-task.webp",
+          "width": 2170,
+          "height": 1281
+        },
+        "settings": {
+          "file": "real/star-river-spirit/settings.webp",
+          "width": 2170,
+          "height": 1281
+        }
+      }
+    },
+    "moonlit-erlang": {
+      "name": "月阙二郎",
+      "appearance": "dark",
+      "views": {
+        "new-task": {
+          "file": "real/moonlit-erlang/new-task.webp",
+          "width": 2170,
+          "height": 1281
+        },
+        "settings": {
+          "file": "real/moonlit-erlang/settings.webp",
+          "width": 2170,
+          "height": 1281
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "codex-theme-studio",
+  "interface": {
+    "displayName": "Theme Studio for Codex"
+  },
+  "plugins": [
+    {
+      "name": "codex-theme-studio",
+      "source": {
+        "source": "local",
+        "path": "./plugins/codex-theme-studio"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

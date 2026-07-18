@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "aurora-glass",
+  "name": "极光穹顶",
+  "appearance": "dark",
+  "image": "background.png",
+  "colors": { "accent": "#8AA7FF", "surface": "#080D1BDD", "text": "#F5F7FF", "mutedText": "#B8C2E0", "overlay": "#05081666" },
+  "art": { "focusX": 0.82, "focusY": 0.48, "safeArea": 0.56, "safeSide": "left", "homeMode": "hero", "taskMode": "ambient" }
+}

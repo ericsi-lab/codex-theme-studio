@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "moonlit-erlang",
+  "name": "月阙二郎",
+  "appearance": "dark",
+  "image": "background.png",
+  "colors": {
+    "accent": "#86B9E8",
+    "surface": "#071221E8",
+    "text": "#F2F7FF",
+    "mutedText": "#AFC4D9",
+    "overlay": "#040B166E"
+  },
+  "art": {
+    "focusX": 0.82,
+    "focusY": 0.46,
+    "safeArea": 0.58,
+    "safeSide": "left",
+    "homeMode": "hero",
+    "taskMode": "ambient"
+  },
+  "effects": {
+    "preset": "mist",
+    "intensity": 0.14,
+    "motion": true
+  }
+}
