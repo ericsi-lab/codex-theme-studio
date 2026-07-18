@@ -4,11 +4,17 @@ The simplest installation is to paste the repository URL into a new Codex task a
 
 ```text
 Install this theme plugin: https://github.com/ericsi-lab/codex-theme-studio
+If its marketplace is not configured, add the main branch of
+ericsi-lab/codex-theme-studio as a Codex Plugin Marketplace, then install
+codex-theme-studio. Do not ask me to use Terminal. Ask before restarting ChatGPT,
+then report installation status, launcher location, whether it is required, and
+whether the featured default theme is active.
 ```
 
-Codex reads the repository manifest and instructions, then installs the Plugin, local runtime and
-launcher. It still asks before restarting the desktop app. This is an agent-assisted installation
-flow; the GitHub URL itself is not a silent-install protocol.
+When local commands, GitHub access and plugin installation are allowed, Codex can add the
+marketplace and install the Plugin, runtime and launcher. It still asks before restarting the
+desktop app. This is an agent-assisted flow, not a silent-install protocol, and managed workspace
+policy can restrict it.
 
 For manual installation, add this repository's marketplace in the ChatGPT desktop Plugins page,
 install **Theme Studio for Codex**, then start a new task and say “install themes”. Legacy
@@ -16,10 +22,13 @@ install **Theme Studio for Codex**, then start a new task and say “install the
 
 The Skill installs the runtime in `~/.codex/codex-theme-studio/` and stores themes under `~/Library/Application Support/CodexThemeStudio/themes/`. It does not require administrator access.
 
-Installation also creates `~/Applications/Theme Studio for Codex.app`. This optional launcher opens
-ChatGPT in loopback-only theme mode without showing a Terminal command. If ChatGPT was opened
-normally, the Skill asks for explicit consent and then performs the same safe restart itself.
-Switching themes while theme mode is active does not restart the app.
+The installation result reports runtime status, the launcher path, whether it is required, the
+featured first theme and the next action. Installation also creates
+`~/Applications/Theme Studio for Codex.app`. This optional, non-resident launcher opens ChatGPT in
+loopback-only theme mode without showing a Terminal command. Its first successful activation
+applies **万妖图录·龙渊灵姬** unless the user already requested another theme. Later opens preserve
+the active theme and never override an explicit restore. The Skill can perform the same consented
+restart, so opening the launcher is not required.
 The launcher uses the project's original icon. During an upgrade, the installer removes the former
 `Codex Theme Studio.app` only when its private managed marker is present. Unrelated applications are
 never replaced or deleted.

@@ -24,10 +24,46 @@ test('install is isolated and preserves the user theme directory', async t => {
     env: { ...process.env, CTS_INSTALL_ROOT: installRoot, CTS_DATA_ROOT: dataRoot, CTS_TEST_MODE: '1' },
   });
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(JSON.parse(result.stdout).ok, true);
+  const installation = JSON.parse(result.stdout);
+  assert.equal(installation.ok, true);
+  assert.equal(installation.onboarding.freshInstall, true);
+  assert.equal(installation.onboarding.launcherRequired, false);
+  assert.equal(installation.onboarding.launcherDisplayPath, '~/Applications/Theme Studio for Codex.app');
+  assert.deepEqual(installation.onboarding.defaultTheme, {
+    id: 'wan-yao-longyuan-lingji',
+    name: '万妖图录·龙渊灵姬',
+    appliesOnFirstThemeModeActivation: true,
+  });
   assert.equal(await fs.readFile(userMarker, 'utf8'), 'mine');
   assert.ok(await fs.stat(path.join(installRoot, 'runtime/src/cli.mjs')));
   assert.ok(await fs.stat(path.join(installRoot, 'runtime/bin/theme-watcher.sh')));
+});
+
+test('update preserves an existing user decision about the one-time default theme', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'cts-update-'));
+  const installRoot = path.join(root, 'runtime');
+  const dataRoot = path.join(root, 'data');
+  const stateFile = path.join(dataRoot, 'state/state.json');
+  await fs.mkdir(path.dirname(stateFile), { recursive: true });
+  await fs.writeFile(stateFile, `${JSON.stringify({
+    version: 1,
+    installedVersion: '0.0.9',
+    activeTheme: null,
+    demoMode: false,
+  })}\n`);
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+
+  const result = spawnSync(node, [cli, 'update'], {
+    encoding: 'utf8',
+    env: { ...process.env, CTS_INSTALL_ROOT: installRoot, CTS_DATA_ROOT: dataRoot, CTS_TEST_MODE: '1' },
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const installation = JSON.parse(result.stdout);
+  const state = JSON.parse(await fs.readFile(stateFile, 'utf8'));
+  assert.equal(installation.onboarding.freshInstall, false);
+  assert.equal(installation.onboarding.defaultTheme.appliesOnFirstThemeModeActivation, false);
+  assert.equal(state.defaultThemeApplied, true);
+  assert.equal(state.onboardingVersion, 1);
 });
 
 test('watch cycle exits when no active theme remains', async t => {

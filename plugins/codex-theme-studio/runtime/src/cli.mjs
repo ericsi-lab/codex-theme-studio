@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { CtsError } from './errors.mjs';
-import { doctor, enableThemeMode } from './system.mjs';
+import { doctor } from './system.mjs';
 import {
+  activateThemeMode,
   applyTheme,
   availableThemes,
   checkCompatibility,
@@ -36,7 +37,16 @@ async function route(args) {
     case 'update': return install();
     case 'doctor': return doctor();
     case 'compatibility': return checkCompatibility();
-    case 'enable': return enableThemeMode({ confirmed: args.includes('--confirmed') });
+    case 'enable': {
+      const requestedThemeId = valueAfter(args, '--theme', null);
+      if (args.includes('--theme') && !requestedThemeId) {
+        throw new CtsError('INVALID_ARGUMENT', '--theme requires a theme ID.');
+      }
+      return activateThemeMode({
+        confirmed: args.includes('--confirmed'),
+        requestedThemeId,
+      });
+    }
     case 'list':
     case 'themes': return { ok: true, themes: await availableThemes() };
     case 'import':

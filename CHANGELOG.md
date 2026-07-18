@@ -9,6 +9,10 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - README gallery now uses a reproducible compact 18-theme layout with larger exact labels.
 - First-time installation docs now lead with the verified “paste the GitHub URL into a Codex task”
   flow and retain Marketplace installation as the manual alternative.
+- The optional launcher now belongs to the `ericsi-lab` bundle namespace and applies
+  万妖图录·龙渊灵姬 once on a fresh installation's first consented theme-mode activation.
+- Installation returns structured onboarding feedback while preserving existing users' active or
+  restored appearance during upgrades.
 
 ### Fixed
 

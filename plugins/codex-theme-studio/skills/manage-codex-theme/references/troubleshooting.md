@@ -3,7 +3,9 @@
 - `UNSUPPORTED_PLATFORM`: v0.1.0 supports macOS only.
 - `APP_NOT_RUNNING`, `CDP_UNAVAILABLE`, or `CDP_PROCESS_MISMATCH`: ask for explicit restart consent,
   then run `enable --confirmed`. The user should not need Terminal. Installation also creates
-  `~/Applications/Theme Studio for Codex.app` as an optional one-click launcher.
+  `~/Applications/Theme Studio for Codex.app` as an optional one-click launcher. On a fresh
+  installation its first successful activation applies 万妖图录·龙渊灵姬; later opens restore the
+  user's active theme and do not override an explicit restore.
 - `CDP_NOT_LOOPBACK`: stop immediately. Do not connect to the endpoint.
 - `APP_IDENTITY_FAILED`: no acceptable OpenAI-signed app identity was found. The runtime checks both
   the migrated `ChatGPT.app` and legacy `Codex.app`, and may fall back to a valid legacy app. It
