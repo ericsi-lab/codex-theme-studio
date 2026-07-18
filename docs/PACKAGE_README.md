@@ -6,7 +6,8 @@ It is an unofficial community project and is not affiliated with or endorsed by 
 ## Install
 
 Add this extracted directory as a Codex Plugin marketplace, install **Theme Studio for Codex**,
-then open a new task and say `安装主题` or `install themes`.
+then open a new task and say `安装主题` or `install themes`. The optional launcher applies
+**万妖图录·龙渊灵姬** on the first consented theme-mode activation, then preserves later choices.
 
 Detailed guides:
 

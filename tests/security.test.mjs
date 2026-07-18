@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -22,8 +24,12 @@ import {
   runningSignatureMatches,
 } from '../plugins/codex-theme-studio/runtime/src/system.mjs';
 import {
+  activationThemeForState,
+  LAUNCHER_BUNDLE_IDENTIFIER,
   launcherAppleScript,
+  partitionThemeVerificationResults,
   waitForStableThemeVerification,
+  watchRetryDelay,
 } from '../plugins/codex-theme-studio/runtime/src/operations.mjs';
 import {
   LAUNCHER_APP_NAME,
@@ -83,6 +89,8 @@ test('adapter injection and restore expressions are parseable', () => {
   assert.match(expression, /250 - \(performance\.now\(\) - lastDecoratedAt\)/);
   assert.match(expression, /structuralMutation/);
   assert.match(expression, /document\.hasFocus\(\)/);
+  assert.match(expression, /document\.hidden && decoratedOnce/);
+  assert.match(expression, /decoratedOnce = true/);
   assert.match(expression, /window\.addEventListener\('blur', pause/);
   assert.match(expression, /--color-token-text-primary:#F4F7F6/);
   assert.match(expression, /--color-background-elevated-primary:var\(--cts-elevated\)/);
@@ -133,8 +141,58 @@ test('launcher copy is accurate for both current ChatGPT and legacy Codex', () =
   assert.match(source, /ChatGPT 或旧版 Codex/);
   assert.match(source, /官方桌面应用/);
   assert.match(source, /with title "Theme Studio for Codex"/);
+  assert.match(source, /万妖图录·龙渊灵姬/);
+  assert.match(source, /首次启用/);
   assert.doesNotMatch(source, /安全重启 ChatGPT 并/);
   assert.doesNotMatch(source, /with title "Codex Theme Studio"/);
+});
+
+test('launcher AppleScript remains compilable after onboarding copy changes', async t => {
+  if (process.platform !== 'darwin') return t.skip('macOS launcher test');
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'cts-launcher-source-'));
+  const sourceFile = path.join(directory, 'launcher.applescript');
+  const appPath = path.join(directory, 'Theme Studio for Codex.app');
+  const probePath = path.join(directory, 'Scripting Additions Probe.app');
+  await fs.writeFile(sourceFile, launcherAppleScript('/tmp/cts'));
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  // Codex's command sandbox can hide the Standard Additions dictionary from osacompile. Skip only
+  // when the platform cannot compile a minimal dialog; macOS CI and normal installers still run
+  // the full source compilation below.
+  const probe = spawnSync('/usr/bin/osacompile', [
+    '-e', 'display dialog "probe"', '-o', probePath,
+  ], { encoding: 'utf8' });
+  if (probe.status !== 0) return t.skip('Standard Additions unavailable in this command sandbox');
+  const compiled = spawnSync('/usr/bin/osacompile', ['-o', appPath, sourceFile], {
+    encoding: 'utf8',
+  });
+  assert.equal(compiled.status, 0, compiled.stderr);
+  assert.ok(await fs.stat(path.join(appPath, 'Contents/Info.plist')));
+});
+
+test('launcher bundle identifier belongs to the publishing repository', () => {
+  assert.equal(
+    LAUNCHER_BUNDLE_IDENTIFIER,
+    'io.github.ericsi-lab.theme-studio-for-codex.launcher',
+  );
+});
+
+test('theme-mode activation uses a requested theme, current theme, then one-time default', () => {
+  assert.deepEqual(
+    activationThemeForState({ activeTheme: 'fortune-guardian', defaultThemeApplied: false }, 'aurora-glass'),
+    { id: 'aurora-glass', source: 'requested' },
+  );
+  assert.deepEqual(
+    activationThemeForState({ activeTheme: 'fortune-guardian', defaultThemeApplied: false }),
+    { id: 'fortune-guardian', source: 'active' },
+  );
+  assert.deepEqual(
+    activationThemeForState({ activeTheme: null, defaultThemeApplied: false }),
+    { id: 'wan-yao-longyuan-lingji', source: 'default' },
+  );
+  assert.equal(
+    activationThemeForState({ activeTheme: null, defaultThemeApplied: true }),
+    null,
+  );
 });
 
 test('launcher rename preserves the private marker used for safe upgrades', () => {
@@ -206,16 +264,39 @@ test('theme mode restart requires explicit consent', async () => {
   );
 });
 
-test('theme mode is a no-op in test mode after consent', async () => {
+test('theme mode is a no-op in test mode after consent', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'cts-theme-mode-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
   const cli = fileURLToPath(new URL('../plugins/codex-theme-studio/runtime/src/cli.mjs', import.meta.url));
   const child = spawnSync(process.execPath, [cli, 'enable', '--confirmed'], {
     encoding: 'utf8',
-    env: { ...process.env, CTS_TEST_MODE: '1' },
+    env: {
+      ...process.env,
+      CTS_TEST_MODE: '1',
+      CTS_INSTALL_ROOT: path.join(root, 'runtime'),
+      CTS_DATA_ROOT: path.join(root, 'data'),
+    },
   });
   assert.equal(child.status, 0, child.stderr);
   const result = JSON.parse(child.stdout);
   assert.equal(result.ok, true);
   assert.equal(result.alreadyEnabled, true);
+  assert.deepEqual(result.defaultTheme, {
+    id: 'wan-yao-longyuan-lingji',
+    name: '万妖图录·龙渊灵姬',
+    pending: true,
+  });
+});
+
+test('theme-mode CLI rejects an empty requested theme before activation', () => {
+  const cli = fileURLToPath(new URL('../plugins/codex-theme-studio/runtime/src/cli.mjs', import.meta.url));
+  const child = spawnSync(process.execPath, [cli, 'enable', '--confirmed', '--theme'], {
+    encoding: 'utf8',
+    env: { ...process.env, CTS_TEST_MODE: '1' },
+  });
+  assert.equal(child.status, 1);
+  const result = JSON.parse(child.stderr);
+  assert.equal(result.code, 'INVALID_ARGUMENT');
 });
 
 test('preview pauses the watcher and restores the previous active theme', async () => {
@@ -227,7 +308,8 @@ test('preview pauses the watcher and restores the previous active theme', async 
   assert.match(preview, /await inject\(activeTheme, state\.demoMode\)/);
   assert.match(preview, /await verifyInjectedTheme\(activeTheme, state\.demoMode\)/);
   assert.match(preview, /await startDaemon\(\)/);
-  assert.match(preview, /await updateState\(\{ activeTheme: null, demoMode: false \}\)/);
+  assert.match(preview, /activeTheme: state\.activeTheme/);
+  assert.doesNotMatch(preview, /activeTheme: null/);
 });
 
 test('daemon keeps only a lightweight shell supervisor resident', async () => {
@@ -264,11 +346,26 @@ test('watcher waits for transient route structure and accepts the first stable v
   assert.deepEqual(delays, [25, 25]);
 });
 
-test('watcher deactivates a persistently invalid theme instead of reapplying it forever', async () => {
+test('multiple page targets keep the selected theme when at least one page is healthy', () => {
+  const summary = partitionThemeVerificationResults([
+    { ok: false, route: null },
+    { ok: true, route: 'home' },
+    { ok: false, route: 'settings' },
+  ]);
+  assert.deepEqual(summary.healthy, [{ ok: true, route: 'home' }]);
+  assert.equal(summary.unhealthy.length, 2);
+});
+
+test('watch retry uses bounded backoff without discarding a valid theme selection', async () => {
+  assert.equal(watchRetryDelay(1), 30_000);
+  assert.equal(watchRetryDelay(2), 60_000);
+  assert.equal(watchRetryDelay(20), 300_000);
+
   const operationsPath = fileURLToPath(new URL('../plugins/codex-theme-studio/runtime/src/operations.mjs', import.meta.url));
   const source = await fs.readFile(operationsPath, 'utf8');
   const cycle = source.slice(source.indexOf('export async function watchCycle'), source.indexOf('export async function watch()'));
-  assert.match(cycle, /\['VERIFY_FAILED', 'THEME_NOT_FOUND'\]\.includes\(error\.code\)/);
-  assert.match(cycle, /await updateState\(\{ activeTheme: null, demoMode: false \}\)/);
-  assert.match(cycle, /return \{ continue: false, deactivated: true \}/);
+  assert.match(cycle, /WATCH_BACKOFF/);
+  assert.match(cycle, /WATCH_RECOVERED/);
+  assert.match(cycle, /if \(error\.code === 'THEME_NOT_FOUND'\)/);
+  assert.doesNotMatch(cycle, /if \(error\.code === 'VERIFY_FAILED'\)/);
 });

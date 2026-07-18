@@ -6,12 +6,20 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Changed
 
+- Added a full English README with reciprocal language navigation and release-audit coverage.
 - README gallery now uses a reproducible compact 18-theme layout with larger exact labels.
 - First-time installation docs now lead with the verified “paste the GitHub URL into a Codex task”
   flow and retain Marketplace installation as the manual alternative.
+- The optional launcher now belongs to the `ericsi-lab` bundle namespace and applies
+  万妖图录·龙渊灵姬 once on a fresh installation's first consented theme-mode activation.
+- Installation returns structured onboarding feedback while preserving existing users' active or
+  restored appearance during upgrades.
 
 ### Fixed
 
+- Hidden pages now receive one initial decoration pass, one incomplete auxiliary renderer no
+  longer deactivates healthy pages, and watcher verification failures retain the selected theme
+  with bounded retry backoff instead of making recovery impossible.
 - Official ChatGPT builds are no longer blocked by a transient static resource-envelope false
   negative. Bundle identity remains required, and macOS must validate the running PID plus its
   OpenAI Developer ID chain before the runtime connects to loopback CDP.
