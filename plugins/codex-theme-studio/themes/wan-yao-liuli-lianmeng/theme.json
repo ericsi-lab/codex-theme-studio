@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "wan-yao-liuli-lianmeng",
+  "name": "万妖图录·琉璃莲梦",
+  "appearance": "light",
+  "image": "background.png",
+  "colors": {
+    "accent": "#B58B3C",
+    "surface": "#F4F7EED9",
+    "text": "#17241F",
+    "mutedText": "#5C7066",
+    "overlay": "#F6FAF04D"
+  },
+  "art": {
+    "focusX": 0.8,
+    "focusY": 0.38,
+    "safeArea": 0.58,
+    "safeSide": "left",
+    "homeMode": "hero",
+    "taskMode": "ambient"
+  },
+  "effects": {
+    "preset": "glow",
+    "intensity": 0.08,
+    "motion": false
+  }
+}

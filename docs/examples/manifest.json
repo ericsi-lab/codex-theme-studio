@@ -4,6 +4,102 @@
   "captureMethod": "Official ChatGPT desktop renderer through loopback-only CDP",
   "privacy": "Full-window new-task/settings capture; only account identity is masked",
   "themes": {
+    "wan-yao-longyuan-lingji": {
+      "name": "万妖图录·龙渊灵姬",
+      "appearance": "dark",
+      "views": {
+        "new-task": {
+          "file": "real/wan-yao-longyuan-lingji/new-task.webp",
+          "width": 2170,
+          "height": 1281
+        },
+        "settings": {
+          "file": "real/wan-yao-longyuan-lingji/settings.webp",
+          "width": 2170,
+          "height": 1281
+        }
+      }
+    },
+    "wan-yao-chimen-tiannu": {
+      "name": "万妖图录·赤门天女",
+      "appearance": "dark",
+      "views": {
+        "new-task": {
+          "file": "real/wan-yao-chimen-tiannu/new-task.webp",
+          "width": 2170,
+          "height": 1281
+        },
+        "settings": {
+          "file": "real/wan-yao-chimen-tiannu/settings.webp",
+          "width": 2170,
+          "height": 1281
+        }
+      }
+    },
+    "wan-yao-jinye-yaohuang": {
+      "name": "万妖图录·烬夜妖皇",
+      "appearance": "dark",
+      "views": {
+        "new-task": {
+          "file": "real/wan-yao-jinye-yaohuang/new-task.webp",
+          "width": 2170,
+          "height": 1281
+        },
+        "settings": {
+          "file": "real/wan-yao-jinye-yaohuang/settings.webp",
+          "width": 2170,
+          "height": 1281
+        }
+      }
+    },
+    "wan-yao-liuli-lianmeng": {
+      "name": "万妖图录·琉璃莲梦",
+      "appearance": "light",
+      "views": {
+        "new-task": {
+          "file": "real/wan-yao-liuli-lianmeng/new-task.webp",
+          "width": 2170,
+          "height": 1281
+        },
+        "settings": {
+          "file": "real/wan-yao-liuli-lianmeng/settings.webp",
+          "width": 2170,
+          "height": 1281
+        }
+      }
+    },
+    "wan-yao-yuelun-xuanjun": {
+      "name": "万妖图录·月轮玄君",
+      "appearance": "dark",
+      "views": {
+        "new-task": {
+          "file": "real/wan-yao-yuelun-xuanjun/new-task.webp",
+          "width": 2170,
+          "height": 1281
+        },
+        "settings": {
+          "file": "real/wan-yao-yuelun-xuanjun/settings.webp",
+          "width": 2170,
+          "height": 1281
+        }
+      }
+    },
+    "wan-yao-yuepu-sanji": {
+      "name": "万妖图录·月瀑伞姬",
+      "appearance": "dark",
+      "views": {
+        "new-task": {
+          "file": "real/wan-yao-yuepu-sanji/new-task.webp",
+          "width": 2170,
+          "height": 1281
+        },
+        "settings": {
+          "file": "real/wan-yao-yuepu-sanji/settings.webp",
+          "width": 2170,
+          "height": 1281
+        }
+      }
+    },
     "fortune-guardian": {
       "name": "赤金财神",
       "appearance": "auto",

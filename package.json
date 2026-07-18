@@ -14,6 +14,7 @@
     "check:compatibility": "node plugins/codex-theme-studio/runtime/src/cli.mjs compatibility",
     "render:cards": "python3 marketing/render_cards_pillow.py",
     "render:cards:html": "node marketing/render-cards.mjs",
+    "render:gallery": "python3 tools/render-gallery.py",
     "package": "bash tools/package-release.sh"
   },
   "engines": {

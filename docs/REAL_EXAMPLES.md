@@ -17,6 +17,7 @@
 
 | 主题 | 新建任务 | 设置 |
 |---|---|---|
+| 万妖图录·龙渊灵姬（首推） | ![龙渊灵姬新建任务](examples/real/wan-yao-longyuan-lingji/new-task.webp) | ![龙渊灵姬设置](examples/real/wan-yao-longyuan-lingji/settings.webp) |
 | 赤金财神 | ![赤金财神新建任务](examples/real/fortune-guardian/new-task.webp) | ![赤金财神设置](examples/real/fortune-guardian/settings.webp) |
 | 黑金环域 | ![黑金环域新建任务](examples/real/obsidian-gold/new-task.webp) | ![黑金环域设置](examples/real/obsidian-gold/settings.webp) |
 | 机关狐灵 | ![机关狐灵新建任务](examples/real/clockwork-fox-spirit/new-task.webp) | ![机关狐灵设置](examples/real/clockwork-fox-spirit/settings.webp) |
@@ -27,5 +28,10 @@
 | 赛博长安 | ![赛博长安新建任务](examples/real/cyber-changan/new-task.webp) | ![赛博长安设置](examples/real/cyber-changan/settings.webp) |
 | 森光秘境 | ![森光秘境新建任务](examples/real/verdant-sanctuary/new-task.webp) | ![森光秘境设置](examples/real/verdant-sanctuary/settings.webp) |
 | 太虚青玄 | ![太虚青玄新建任务](examples/real/cosmic-taixu/new-task.webp) | ![太虚青玄设置](examples/real/cosmic-taixu/settings.webp) |
+| 万妖图录·赤门天女 | ![赤门天女新建任务](examples/real/wan-yao-chimen-tiannu/new-task.webp) | ![赤门天女设置](examples/real/wan-yao-chimen-tiannu/settings.webp) |
+| 万妖图录·烬夜妖皇 | ![烬夜妖皇新建任务](examples/real/wan-yao-jinye-yaohuang/new-task.webp) | ![烬夜妖皇设置](examples/real/wan-yao-jinye-yaohuang/settings.webp) |
+| 万妖图录·琉璃莲梦 | ![琉璃莲梦新建任务](examples/real/wan-yao-liuli-lianmeng/new-task.webp) | ![琉璃莲梦设置](examples/real/wan-yao-liuli-lianmeng/settings.webp) |
+| 万妖图录·月轮玄君 | ![月轮玄君新建任务](examples/real/wan-yao-yuelun-xuanjun/new-task.webp) | ![月轮玄君设置](examples/real/wan-yao-yuelun-xuanjun/settings.webp) |
+| 万妖图录·月瀑伞姬 | ![月瀑伞姬新建任务](examples/real/wan-yao-yuepu-sanji/new-task.webp) | ![月瀑伞姬设置](examples/real/wan-yao-yuepu-sanji/settings.webp) |
 | 星河灵姬 | ![星河灵姬新建任务](examples/real/star-river-spirit/new-task.webp) | ![星河灵姬设置](examples/real/star-river-spirit/settings.webp) |
 | 月阙二郎 | ![月阙二郎新建任务](examples/real/moonlit-erlang/new-task.webp) | ![月阙二郎设置](examples/real/moonlit-erlang/settings.webp) |

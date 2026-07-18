@@ -15,9 +15,11 @@ import {
 } from '../plugins/codex-theme-studio/runtime/src/adapter.mjs';
 import {
   applicationProfile,
+  designatedRequirementMatches,
   identityCacheMatches,
   enableThemeMode,
   restartCommand,
+  runningSignatureMatches,
 } from '../plugins/codex-theme-studio/runtime/src/system.mjs';
 import {
   launcherAppleScript,
@@ -146,6 +148,33 @@ test('recognizes the official Codex-to-ChatGPT migration profile', () => {
   assert.equal(applicationProfile('ChatGPT'), 'chatgpt-current');
   assert.equal(applicationProfile('Codex'), 'codex-legacy');
   assert.equal(applicationProfile('Unknown Desktop'), null);
+});
+
+test('accepts only the expected Apple/OpenAI designated requirement', () => {
+  const requirement = 'designated => identifier "com.openai.codex" and anchor apple generic '
+    + 'and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ '
+    + 'and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ '
+    + 'and certificate leaf[subject.OU] = "2DC432GLL2"';
+  assert.equal(designatedRequirementMatches(requirement), true);
+  assert.equal(designatedRequirementMatches(requirement.replace('2DC432GLL2', 'OTHERTEAM')), false);
+  assert.equal(designatedRequirementMatches(requirement.replace('com.openai.codex', 'example.app')), false);
+  assert.equal(designatedRequirementMatches(requirement.replace('anchor apple generic', 'anchor generic')), false);
+  assert.equal(designatedRequirementMatches(requirement.replace('1.2.840.113635.100.6.1.13', '1.2.3')), false);
+});
+
+test('accepts only a dynamically valid OpenAI Developer ID identity chain', () => {
+  const signature = [
+    'Identifier=com.openai.codex',
+    'Authority=Developer ID Application: OpenAI OpCo, LLC (2DC432GLL2)',
+    'Authority=Developer ID Certification Authority',
+    'Authority=Apple Root CA',
+    'TeamIdentifier=2DC432GLL2',
+  ].join('\n');
+  assert.equal(runningSignatureMatches(signature), true);
+  assert.equal(runningSignatureMatches(signature.replace('TeamIdentifier=2DC432GLL2', 'TeamIdentifier=OTHERTEAM')), false);
+  assert.equal(runningSignatureMatches(signature.replace('Identifier=com.openai.codex', 'Identifier=example.app')), false);
+  assert.equal(runningSignatureMatches(signature.replace('Authority=Apple Root CA\n', '')), false);
+  assert.equal(runningSignatureMatches(signature.replace('(2DC432GLL2)', '(OTHERTEAM)')), false);
 });
 
 test('reuses identity results only for an unchanged app build fingerprint', () => {

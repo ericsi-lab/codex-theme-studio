@@ -15,7 +15,8 @@
 
 ## Real app
 
-- Use an official ChatGPT build that passes the macOS signature check.
+- Use an official ChatGPT build whose running process passes macOS dynamic validity and the OpenAI
+  Developer ID identity check.
 - Verify `doctor → preview → verify → automatic restore`.
 - Verify `apply → verify → restore`.
 - Test home/task, light/dark, narrow/wide, streaming, modal and reduced-motion states.

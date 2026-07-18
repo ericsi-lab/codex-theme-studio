@@ -8,13 +8,15 @@ boundary. It never assumes a previously verified binary or page adapter is still
 When the application version, build, CDHash, executable metadata or signed resources change:
 
 1. The previous identity-cache entry no longer matches.
-2. Team ID and the complete macOS code signature are verified once for the new build.
-3. Every eligible page must pass the `app:`/`codex:` identity marker check.
-4. After theme injection, the adapter verifies exactly one background and style node, a supported
+2. Bundle ID, OpenAI Team ID and the Apple Developer ID requirement are checked for the build.
+3. macOS must report the running desktop process as dynamically valid with the complete OpenAI
+   Developer ID authority chain before CDP is touched.
+4. Every eligible page must pass the `app:`/`codex:` identity marker check.
+5. After theme injection, the adapter verifies exactly one background and style node, a supported
    home/task route, tagged main and composer surfaces, semantic theme tokens and pointer safety.
-5. The runtime stores the adapter version, theme fingerprint and demo-mode state. A new page or
+6. The runtime stores the adapter version, theme fingerprint and demo-mode state. A new page or
    stale runtime is reconciled by the next watcher cycle.
-6. If post-injection verification fails, the watcher gives transient route structure a bounded
+7. If post-injection verification fails, the watcher gives transient route structure a bounded
    stabilization window. A persistent failure restores the incomplete page, clears the active
    theme, stops automatic retries and records the error.
 
@@ -41,8 +43,8 @@ Theme data remains in the stable compatibility directory throughout the display-
 
 ## Expected safe failures
 
-- `APP_SIGNATURE_INCOMPATIBLE`: the new build was recognized but macOS rejected its signature.
-- `APP_IDENTITY_FAILED`: Team ID, bundle identity or executable metadata no longer matches.
+- `APP_IDENTITY_FAILED`: the Bundle ID, Team ID, Developer ID chain, executable path or running
+  process validity no longer matches.
 - `TARGET_IDENTITY_FAILED`: the current renderer is not a supported home/task page.
 - `VERIFY_FAILED`: the page adapter contract changed after injection; the incomplete theme is
   restored and automatic retries stop until the user explicitly applies a compatible theme.

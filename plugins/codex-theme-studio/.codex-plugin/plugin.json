@@ -17,7 +17,7 @@
   "interface": {
     "displayName": "Theme Studio for Codex",
     "shortDescription": "Create and apply local, reversible Codex themes.",
-    "longDescription": "A self-developed, open-source theme manager for macOS with natural-language generation, twelve bundled presets, safe preview, automatic rollback, low-power effects, and no telemetry.",
+    "longDescription": "A self-developed, open-source theme manager for macOS with natural-language generation, eighteen bundled presets, safe preview, automatic rollback, low-power effects, and no telemetry.",
     "developerName": "Theme Studio for Codex contributors",
     "category": "Productivity",
     "capabilities": [
