@@ -9,8 +9,12 @@ Security fixes are provided for the latest published release.
 Theme Studio for Codex:
 
 - connects only to a CDP endpoint bound to `127.0.0.1` or `::1`;
-- checks the Codex bundle identifier, code signature, running process, target URL, and expected page markers before injecting a theme;
-- recognizes the official Codex-to-ChatGPT migration and caches a deep-verification result only for
+- checks the Codex bundle identifier, OpenAI Team ID, Apple Developer ID requirement, running
+  process, target URL, and expected page markers before injecting a theme;
+- requires macOS dynamic validity and the OpenAI Developer ID authority chain for the live PID
+  before connecting to CDP; static deep resource-envelope verification remains diagnostic because
+  it can report transient false negatives during an official desktop update;
+- recognizes the official Codex-to-ChatGPT migration and caches only stable bundle identity for
   the matching version, build, CDHash, executable metadata, and CodeResources metadata;
 - never modifies `ChatGPT.app`, legacy `Codex.app`, `app.asar`, code signatures, model settings, API keys, or credentials;
 - rejects theme path traversal, symbolic links, unsupported image formats, files over 16 MiB,

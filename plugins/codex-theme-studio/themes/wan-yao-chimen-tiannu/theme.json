@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "wan-yao-chimen-tiannu",
+  "name": "万妖图录·赤门天女",
+  "appearance": "dark",
+  "image": "background.png",
+  "colors": {
+    "accent": "#F27A42",
+    "surface": "#1C0D0DD9",
+    "text": "#FFF5EA",
+    "mutedText": "#DFC2B6",
+    "overlay": "#21060659"
+  },
+  "art": {
+    "focusX": 0.77,
+    "focusY": 0.45,
+    "safeArea": 0.58,
+    "safeSide": "left",
+    "homeMode": "hero",
+    "taskMode": "ambient"
+  },
+  "effects": {
+    "preset": "embers",
+    "intensity": 0.1,
+    "motion": false
+  }
+}

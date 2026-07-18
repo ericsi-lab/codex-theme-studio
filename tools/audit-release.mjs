@@ -46,7 +46,7 @@ const themeIds = (await fs.readdir(themesRoot, { withFileTypes: true }))
   .filter(entry => entry.isDirectory())
   .map(entry => entry.name)
   .sort();
-if (themeIds.length !== 12) errors.push(`expected 12 themes, found ${themeIds.length}`);
+if (themeIds.length !== 18) errors.push(`expected 18 themes, found ${themeIds.length}`);
 for (const themeId of themeIds) {
   for (const file of ['theme.json', 'background.png', 'preview-light.jpg', 'preview-dark.jpg', 'cover.jpg', 'LICENSE.txt']) {
     await requireFile(`plugins/codex-theme-studio/themes/${themeId}/${file}`);

@@ -4,7 +4,17 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## [Unreleased]
 
-_No changes yet._
+### Changed
+
+- README gallery now uses a reproducible compact 18-theme layout with larger exact labels.
+- First-time installation docs now lead with the verified “paste the GitHub URL into a Codex task”
+  flow and retain Marketplace installation as the manual alternative.
+
+### Fixed
+
+- Official ChatGPT builds are no longer blocked by a transient static resource-envelope false
+  negative. Bundle identity remains required, and macOS must validate the running PID plus its
+  OpenAI Developer ID chain before the runtime connects to loopback CDP.
 
 ## [0.1.0] - 2026-07-18
 
@@ -13,6 +23,9 @@ _No changes yet._
 - macOS Plugin and `manage-codex-theme` Skill.
 - Local CDP theme runtime with doctor, preview, apply, verify, restore, and uninstall flows.
 - Safe theme package validator and the initial six original presets.
+- Six project-owner-authorized “万妖图录” themes with their original 1672×941 PNG backgrounds:
+  Liuli Lotus Dream, Longyuan Spirit, Moon-Wheel Sovereign, Ember-Night Sovereign,
+  Moonfall Umbrella Spirit, and Crimson-Gate Celestial.
 - Six original character-led themes: Fortune Guardian, Moonlit Erlang, Dawn Monkey King, Lotus Fire Nezha, Star River Spirit, and Clockwork Fox Spirit.
 - Optional safe `effects` metadata with bounded mist, star, ember, petal and glow presets.
 - Natural-language custom background workflow and deterministic import metadata flags.
@@ -20,15 +33,15 @@ _No changes yet._
 - Plan Control Deck keynote design system and capture guide for later launch-video production.
 - User-level `Theme Studio for Codex.app` launcher and consent-gated one-click theme-mode restart.
 - Loader benchmark and signed-app performance acceptance guide.
-- Deterministic real-screenshot workflow for all twelve themes, limited to full-window new-task
+- Deterministic real-screenshot workflow for all eighteen themes, limited to full-window new-task
   and official settings views with screenshot-time identity redaction.
 
 ### Changed
 
 - Theme listing now loads metadata without reading every image buffer.
-- The official Codex-to-ChatGPT migration is recognized automatically. Successful and rejected
-  deep-signature results are cached per unchanged app-build fingerprint, and candidate discovery
-  can fall back from a rejected current ChatGPT app to a valid legacy Codex app.
+- The official Codex-to-ChatGPT migration is recognized automatically. Stable bundle identity is
+  cached per unchanged app-build fingerprint, and candidate discovery can fall back from a
+  rejected current ChatGPT app to a valid legacy Codex app.
 - Renderer injection now uses revocable Blob URLs, scoped observers, coalesced updates, visibility throttling and deterministic cleanup.
 - Image limits are enforced from bounded headers before full decoding: 16 MiB, 12 MP and 8192 px per side.
 - Runtime logs are bounded and store only sanitized event codes.
@@ -45,8 +58,6 @@ _No changes yet._
 ### Fixed
 
 - Preview and apply failures now restore the prior appearance before returning an error.
-- Signature-incompatible migrated builds now return `APP_SIGNATURE_INCOMPATIBLE` with a
-  non-injection fallback instead of implying the user selected the wrong application.
 - First-use activation no longer requires the user to type a Terminal command.
 - Theme injection now skips internal ChatGPT helper targets and continues across eligible home and
   task pages instead of failing the whole switch with `TARGET_IDENTITY_FAILED`.

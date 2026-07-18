@@ -6,12 +6,9 @@
   `~/Applications/Theme Studio for Codex.app` as an optional one-click launcher.
 - `CDP_NOT_LOOPBACK`: stop immediately. Do not connect to the endpoint.
 - `APP_IDENTITY_FAILED`: no acceptable OpenAI-signed app identity was found. The runtime checks both
-  the migrated `ChatGPT.app` and legacy `Codex.app`, and may fall back to a valid legacy app.
-- `APP_SIGNATURE_INCOMPATIBLE`: the migrated ChatGPT app was recognized, but macOS rejected the
-  local signature for this exact build. Do not bypass the check and do not ask the user to run
-  manual signature commands. Theme injection stays unavailable, while `list`, image generation,
-  and `import` still work. Retry after the official desktop app updates; reinstall is an optional
-  repair, not a recurring requirement.
+  the migrated `ChatGPT.app` and legacy `Codex.app`, and may fall back to a valid legacy app. It
+  requires the exact Bundle ID, OpenAI Team ID, Apple Developer ID chain and macOS dynamic validity
+  for the running process. Do not ask the user to run manual signature commands.
 - `TARGET_IDENTITY_FAILED`: open a normal Codex home or task page inside the app. Never inject into an arbitrary browser target.
 - `THEME_INVALID`: fix the field or image issue reported by the validator; do not weaken limits.
 - `PREVIEW_TIMEOUT`: expected automatic restore. Apply only after the user chooses the theme.
