@@ -361,7 +361,7 @@ async function restorePages({ alreadyVerified = false } = {}) {
   if (!alreadyVerified) {
     try { await doctor(); }
     catch (error) {
-      if (['APP_NOT_RUNNING', 'CDP_UNAVAILABLE', 'APP_IDENTITY_FAILED', 'APP_SIGNATURE_INCOMPATIBLE'].includes(error.code)) return [];
+      if (['APP_NOT_RUNNING', 'CDP_UNAVAILABLE', 'APP_IDENTITY_FAILED'].includes(error.code)) return [];
       throw error;
     }
   }

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "wan-yao-yuepu-sanji",
+  "name": "万妖图录·月瀑伞姬",
+  "appearance": "dark",
+  "image": "background.png",
+  "colors": {
+    "accent": "#AFCBFF",
+    "surface": "#111A2AD9",
+    "text": "#F5F8FF",
+    "mutedText": "#C5D1E2",
+    "overlay": "#07111F59"
+  },
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.45,
+    "safeArea": 0.58,
+    "safeSide": "left",
+    "homeMode": "hero",
+    "taskMode": "ambient"
+  },
+  "effects": {
+    "preset": "mist",
+    "intensity": 0.1,
+    "motion": false
+  }
+}

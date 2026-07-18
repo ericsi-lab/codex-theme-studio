@@ -81,7 +81,10 @@ scripts/cts import /absolute/path/to/background.png \
 - Use only `none`, `mist`, `stars`, `embers`, `petals`, or `glow` effects. Themes never carry executable JavaScript.
 - `uninstall` preserves user themes. Only use `uninstall --delete-user-data` after the user explicitly asks to delete their images and confirms the irreversible action.
 - Do not expose task content in logs or screenshots. Turn on demo mode before capture and turn it off afterward.
-- Never bypass signature, process, page-identity, or loopback checks. Use [troubleshooting](references/troubleshooting.md) for failures.
+- Never bypass the running signature, process, page-identity, or loopback checks. Static deep
+  verification is diagnostic because some official builds report transient resource-envelope
+  failures; macOS dynamic validity plus the exact OpenAI Developer ID chain remains mandatory.
+  Use [troubleshooting](references/troubleshooting.md) for failures.
 - After an official ChatGPT/Codex desktop update, run `compatibility` before reporting the active
   theme healthy. It validates the new signed build and structural adapter contract without reading
   page text, prompts, project names, usernames or local task paths.

@@ -15,7 +15,7 @@ import { fail } from './errors.mjs';
 const execFile = promisify(execFileCallback);
 const BUNDLE_ID = 'com.openai.codex';
 const OPENAI_TEAM_ID = '2DC432GLL2';
-const IDENTITY_CACHE_SCHEMA = 1;
+const IDENTITY_CACHE_SCHEMA = 2;
 
 async function run(command, args) {
   return execFile(command, args, { timeout: 4_000, maxBuffer: 1024 * 1024 });
@@ -76,11 +76,56 @@ function signatureValue(signature, key) {
 }
 
 /**
+ * Confirms that the embedded designated requirement identifies OpenAI's Codex desktop bundle.
+ *
+ * Full resource-envelope verification is intentionally not used as an availability gate because
+ * current official desktop builds can fail `codesign --verify --deep --strict` after installation
+ * even while their stable signing identity, bundle metadata and notarization ticket remain intact.
+ * The runtime still requires the Apple Developer ID requirement, exact bundle identifier and Team
+ * ID before it will inspect the running process or connect to loopback CDP.
+ *
+ * @param {string} requirement Output from `codesign -d -r-`; empty output is never accepted.
+ * @returns {boolean} True only when every stable Apple/OpenAI identity signal is present.
+ */
+export function designatedRequirementMatches(requirement) {
+  return [
+    'identifier "com.openai.codex"',
+    'anchor apple generic',
+    'certificate 1[field.1.2.840.113635.100.6.2.6]',
+    'certificate leaf[field.1.2.840.113635.100.6.1.13]',
+    `certificate leaf[subject.OU] = "${OPENAI_TEAM_ID}"`,
+  ].every(signal => requirement.includes(signal));
+}
+
+/**
+ * Confirms that macOS reports the running process as OpenAI's valid Developer ID code.
+ *
+ * Static resource-envelope checks can produce false negatives for a currently supported desktop
+ * build. Before CDP is touched, the runtime therefore asks macOS to validate the live process and
+ * then checks the identity and complete Developer ID authority chain returned for that PID.
+ *
+ * @param {string} signature Output from `codesign -d --verbose=4 +PID`; never page content.
+ * @returns {boolean} True only for the expected Codex identifier, Team ID and Apple trust chain.
+ */
+export function runningSignatureMatches(signature) {
+  const authorities = [...signature.matchAll(/^Authority=(.+)$/gm)]
+    .map(match => match[1].trim());
+  const openAiDeveloperId = new RegExp(
+    `^Developer ID Application: .+ \\(${OPENAI_TEAM_ID}\\)$`,
+  );
+  return signatureValue(signature, 'Identifier') === BUNDLE_ID
+    && signatureValue(signature, 'TeamIdentifier') === OPENAI_TEAM_ID
+    && authorities.some(authority => openAiDeveloperId.test(authority))
+    && authorities.includes('Developer ID Certification Authority')
+    && authorities.includes('Apple Root CA');
+}
+
+/**
  * Builds a stable fingerprint for one installed application build.
  *
- * The fingerprint exists so successful or failed deep verification is reused only while the
- * signed executable and CodeResources files remain unchanged. It never replaces Team ID or
- * codesign verification for a new build.
+ * The fingerprint exists so stable bundle-identity inspection is reused only while the executable
+ * and CodeResources metadata remain unchanged. It never replaces the live-process validity check
+ * performed before a CDP connection.
  *
  * @param {object} bundle Metadata read from the candidate application bundle.
  * @param {string} signature Output from `codesign -dv --verbose=4`.
@@ -137,49 +182,39 @@ async function writeIdentityCache(entry) {
   await fs.rename(temporary, APP_IDENTITY_CACHE_FILE);
 }
 
-function signatureFailureDetails(bundle) {
-  return {
+function throwCachedIdentityFailure(bundle, reason) {
+  const message = reason === 'team'
+    ? `${bundle.displayName} is not signed by the expected OpenAI team.`
+    : `${bundle.displayName} does not contain the expected Apple/OpenAI signing requirement.`;
+  fail('APP_IDENTITY_FAILED', message, {
     application: bundle.displayName,
     version: bundle.version,
     build: bundle.build,
-    migrationAware: bundle.profile === 'chatgpt-current',
-    manualVerificationRequired: false,
     injectionAvailable: false,
-    nonInjectionFeaturesAvailable: true,
-    nextAction: 'Retry after the official desktop app updates. Reinstall is an optional repair, not a recurring requirement.',
-  };
-}
-
-function throwCachedIdentityFailure(bundle, reason) {
-  if (reason === 'team') {
-    fail('APP_IDENTITY_FAILED', `${bundle.displayName} is not signed by the expected OpenAI team.`, {
-      application: bundle.displayName,
-      version: bundle.version,
-      build: bundle.build,
-      injectionAvailable: false,
-    });
-  }
-  fail(
-    'APP_SIGNATURE_INCOMPATIBLE',
-    `macOS rejected the local code signature for ${bundle.displayName} ${bundle.version}. The Codex-to-ChatGPT migration was recognized; theme injection remains disabled for this unchanged app build.`,
-    signatureFailureDetails(bundle),
-  );
+  });
 }
 
 /**
- * Verifies an app build once and caches either the success or the stable failure.
+ * Inspects an app build once and caches either the stable identity or a stable rejection.
  *
  * @param {object} bundle Candidate returned by `inspectBundle`.
  * @returns {Promise<object>} Verification metadata including whether the cache was used.
  */
 async function verifyBundleIdentity(bundle) {
-  const detail = await run('/usr/bin/codesign', ['-dv', '--verbose=4', bundle.path])
-    .catch(() => fail('APP_IDENTITY_FAILED', `${bundle.displayName} has no readable code signature.`));
+  const [detail, requirementDetail] = await Promise.all([
+    run('/usr/bin/codesign', ['-dv', '--verbose=4', bundle.path])
+      .catch(() => fail('APP_IDENTITY_FAILED', `${bundle.displayName} has no readable code signature.`)),
+    run('/usr/bin/codesign', ['-d', '-r-', bundle.path])
+      .catch(() => fail('APP_IDENTITY_FAILED', `${bundle.displayName} has no readable signing requirement.`)),
+  ]);
   const signature = `${detail.stdout}\n${detail.stderr}`;
+  const requirement = `${requirementDetail.stdout}\n${requirementDetail.stderr}`;
   const fingerprint = await bundleFingerprint(bundle, signature);
   const cache = await readIdentityCache();
   const cached = cache.entries.find(entry => identityCacheMatches(entry, fingerprint));
-  if (cached?.status === 'verified') return { cached: true, checkedAt: cached.checkedAt };
+  if (cached?.status === 'verified') {
+    return { cached: true, checkedAt: cached.checkedAt, integrity: cached.integrity };
+  }
   if (cached?.status === 'rejected') throwCachedIdentityFailure(bundle, cached.reason);
 
   if (fingerprint.teamIdentifier !== OPENAI_TEAM_ID) {
@@ -189,18 +224,20 @@ async function verifyBundleIdentity(bundle) {
     throwCachedIdentityFailure(bundle, 'team');
   }
 
-  try {
-    await run('/usr/bin/codesign', ['--verify', '--deep', '--strict', bundle.path]);
-  } catch {
+  if (!designatedRequirementMatches(requirement)) {
     await writeIdentityCache({
-      fingerprint, status: 'rejected', reason: 'signature', checkedAt: new Date().toISOString(),
+      fingerprint, status: 'rejected', reason: 'requirement', checkedAt: new Date().toISOString(),
     });
-    throwCachedIdentityFailure(bundle, 'signature');
+    throwCachedIdentityFailure(bundle, 'requirement');
   }
 
+  // Keep the complete on-disk resource envelope as a diagnostic. The hard validity gate is the
+  // running process check below, which macOS evaluates against the code it actually launched.
+  const integrity = await run('/usr/bin/codesign', ['--verify', '--deep', '--strict', bundle.path])
+    .then(() => 'static-verified', () => 'runtime-verification-required');
   const checkedAt = new Date().toISOString();
-  await writeIdentityCache({ fingerprint, status: 'verified', checkedAt });
-  return { cached: false, checkedAt };
+  await writeIdentityCache({ fingerprint, status: 'verified', integrity, checkedAt });
+  return { cached: false, integrity, checkedAt };
 }
 
 async function cachedVerifiedBundle(bundles) {
@@ -235,7 +272,7 @@ export async function resolveApplication({ verifySignature = true } = {}) {
       bundle.identity = await verifyBundleIdentity(bundle);
       return bundle;
     } catch (error) {
-      if (!['APP_IDENTITY_FAILED', 'APP_SIGNATURE_INCOMPATIBLE'].includes(error.code)) throw error;
+      if (error.code !== 'APP_IDENTITY_FAILED') throw error;
       firstFailure ||= error;
     }
   }
@@ -255,7 +292,16 @@ async function verifyProcess(bundle) {
   if (!command.includes('--remote-debugging-address=127.0.0.1')) {
     fail('CDP_NOT_LOOPBACK', `${bundle.displayName} was not explicitly bound to 127.0.0.1.`);
   }
-  return { pid: Number(line.trim().split(/\s+/, 1)[0]), executable: bundle.executable };
+  const pid = Number(line.trim().split(/\s+/, 1)[0]);
+  await run('/usr/bin/codesign', ['-v', `+${pid}`])
+    .catch(() => fail('APP_IDENTITY_FAILED', `${bundle.displayName} is not a dynamically valid macOS process.`));
+  const detail = await run('/usr/bin/codesign', ['-d', '--verbose=4', `+${pid}`])
+    .catch(() => fail('APP_IDENTITY_FAILED', `${bundle.displayName} has no readable running signature.`));
+  const signature = `${detail.stdout}\n${detail.stderr}`;
+  if (!runningSignatureMatches(signature)) {
+    fail('APP_IDENTITY_FAILED', `${bundle.displayName} is not a valid OpenAI-signed running process.`);
+  }
+  return { pid, executable: bundle.executable, identity: 'dynamically-verified' };
 }
 
 async function applicationProcesses(bundle) {
@@ -378,10 +424,10 @@ export async function doctor({ requirePage = true } = {}) {
 }
 
 /**
- * Performs the inexpensive watcher health check after a process has passed full identity validation.
+ * Performs the watcher health check after a process has passed full identity validation.
  *
  * @param {{requirePage?: boolean}} options Whether at least one eligible app page must be available.
- * @returns {Promise<object>} Current process, CDP, and target health without repeating deep codesign.
+ * @returns {Promise<object>} Current process, CDP, and target health without repeating static deep verification.
  */
 export async function healthCheck({ requirePage = true } = {}) {
   return inspectRuntime({ verifySignature: false, requirePage });

@@ -10,6 +10,9 @@ release/
 marketing/
 videos/
 
+# HeyGen avatar identities and account-facing IDs are local-only marketing data.
+AVATAR-*.md
+
 # Local release coordination notes are useful during preparation but are not
 # part of the public project documentation.
 docs/HANDOFF.zh-CN.md
@@ -18,5 +21,3 @@ docs/OPEN_SOURCE_READINESS.zh-CN.md
 # Rights-unverified artwork and its real screenshots remain local. Keeping both
 # the source paths and the local archive ignored prevents accidental publication.
 .local-only/
-plugins/codex-theme-studio/themes/wan-yao-*/
-docs/examples/real/wan-yao-*/

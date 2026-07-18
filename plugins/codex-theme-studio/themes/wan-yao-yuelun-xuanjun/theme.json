@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "wan-yao-yuelun-xuanjun",
+  "name": "万妖图录·月轮玄君",
+  "appearance": "dark",
+  "image": "background.png",
+  "colors": {
+    "accent": "#D7B76D",
+    "surface": "#0A101AD9",
+    "text": "#F5F0E7",
+    "mutedText": "#C8C2B6",
+    "overlay": "#050A1266"
+  },
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.46,
+    "safeArea": 0.58,
+    "safeSide": "left",
+    "homeMode": "hero",
+    "taskMode": "ambient"
+  },
+  "effects": {
+    "preset": "stars",
+    "intensity": 0.1,
+    "motion": false
+  }
+}

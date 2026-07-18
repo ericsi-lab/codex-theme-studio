@@ -13,11 +13,10 @@ Theme Studio for Codex treats performance as a release gate, not a marketing cla
   page, clears the active theme, and stops instead of repeatedly restoring and reapplying it.
 - A reconciliation cycle reads theme metadata only. It loads image bytes only when a new page,
   adapter version, theme fingerprint or demo-mode value actually requires reinjection.
-- Deep code-signature verification runs once for each unchanged desktop-app build. The local cache
-  is keyed by version, build, CDHash, executable metadata, and CodeResources metadata, and stores
-  both a successful result and a stable rejection. A desktop update or signed-file change
-  invalidates the entry automatically. Ordinary commands and 30-second watcher health checks do
-  not repeat `codesign --deep`.
+- Stable bundle identity inspection is cached by version, build, CDHash, executable metadata and
+  CodeResources metadata. A desktop update invalidates that entry automatically. Static
+  `codesign --deep` remains a once-per-build diagnostic; before each CDP health check, macOS validates
+  the live PID and its OpenAI Developer ID identity without scanning page or task content.
 - Renderer images use Blob URLs. Switch and restore revoke the old URL, disconnect observers, cancel timers and animation frames, and remove all decoration nodes.
 - DOM changes are coalesced to at most one decoration pass per 250 ms. Streaming text-only
   mutations are ignored; only shell, route, suggestion and composer structure changes schedule a
