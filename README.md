@@ -1,5 +1,9 @@
 # Theme Studio for Codex
 
+<p align="center">
+  <strong>简体中文</strong> · <a href="./README.en.md">English</a>
+</p>
+
 > 一张图，换一种 Codex 工作氛围。
 
 Theme Studio for Codex 是一款自研、开源、默认无遥测的 ChatGPT 桌面端 Codex 工作区主题管理器。用户安装的是 **Plugin**；Plugin 内置自然语言 Skill、确定性 CLI、运行时和主题。安装后可以直接说“换成财神”“生成一个哪吒背景”或“恢复默认界面”。
