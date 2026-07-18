@@ -264,11 +264,18 @@ test('theme mode restart requires explicit consent', async () => {
   );
 });
 
-test('theme mode is a no-op in test mode after consent', async () => {
+test('theme mode is a no-op in test mode after consent', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'cts-theme-mode-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
   const cli = fileURLToPath(new URL('../plugins/codex-theme-studio/runtime/src/cli.mjs', import.meta.url));
   const child = spawnSync(process.execPath, [cli, 'enable', '--confirmed'], {
     encoding: 'utf8',
-    env: { ...process.env, CTS_TEST_MODE: '1' },
+    env: {
+      ...process.env,
+      CTS_TEST_MODE: '1',
+      CTS_INSTALL_ROOT: path.join(root, 'runtime'),
+      CTS_DATA_ROOT: path.join(root, 'data'),
+    },
   });
   assert.equal(child.status, 0, child.stderr);
   const result = JSON.parse(child.stdout);
