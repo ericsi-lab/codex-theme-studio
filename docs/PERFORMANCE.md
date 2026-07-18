@@ -9,8 +9,9 @@ Theme Studio for Codex treats performance as a release gate, not a marketing cla
   starts one bounded Node reconciliation cycle and lets the full V8/CDP process exit immediately.
   This trades a short periodic check for substantially lower idle RSS.
 - A reconciliation that sees a transient route transition waits up to two seconds for ChatGPT's
-  main and composer structure to stabilize. If verification still fails, the watcher restores the
-  page, clears the active theme, and stops instead of repeatedly restoring and reapplying it.
+  main and composer structure to stabilize. If verification still fails, the watcher restores only
+  the incomplete target and retries with bounded exponential backoff. The selected theme remains
+  recoverable, while a healthy main page is not affected by an auxiliary renderer failure.
 - A reconciliation cycle reads theme metadata only. It loads image bytes only when a new page,
   adapter version, theme fingerprint or demo-mode value actually requires reinjection.
 - Stable bundle identity inspection is cached by version, build, CDHash, executable metadata and

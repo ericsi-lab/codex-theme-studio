@@ -27,7 +27,9 @@ import {
   activationThemeForState,
   LAUNCHER_BUNDLE_IDENTIFIER,
   launcherAppleScript,
+  partitionThemeVerificationResults,
   waitForStableThemeVerification,
+  watchRetryDelay,
 } from '../plugins/codex-theme-studio/runtime/src/operations.mjs';
 import {
   LAUNCHER_APP_NAME,
@@ -87,6 +89,8 @@ test('adapter injection and restore expressions are parseable', () => {
   assert.match(expression, /250 - \(performance\.now\(\) - lastDecoratedAt\)/);
   assert.match(expression, /structuralMutation/);
   assert.match(expression, /document\.hasFocus\(\)/);
+  assert.match(expression, /document\.hidden && decoratedOnce/);
+  assert.match(expression, /decoratedOnce = true/);
   assert.match(expression, /window\.addEventListener\('blur', pause/);
   assert.match(expression, /--color-token-text-primary:#F4F7F6/);
   assert.match(expression, /--color-background-elevated-primary:var\(--cts-elevated\)/);
@@ -297,7 +301,8 @@ test('preview pauses the watcher and restores the previous active theme', async 
   assert.match(preview, /await inject\(activeTheme, state\.demoMode\)/);
   assert.match(preview, /await verifyInjectedTheme\(activeTheme, state\.demoMode\)/);
   assert.match(preview, /await startDaemon\(\)/);
-  assert.match(preview, /await updateState\(\{ activeTheme: null, demoMode: false \}\)/);
+  assert.match(preview, /activeTheme: state\.activeTheme/);
+  assert.doesNotMatch(preview, /activeTheme: null/);
 });
 
 test('daemon keeps only a lightweight shell supervisor resident', async () => {
@@ -334,11 +339,26 @@ test('watcher waits for transient route structure and accepts the first stable v
   assert.deepEqual(delays, [25, 25]);
 });
 
-test('watcher deactivates a persistently invalid theme instead of reapplying it forever', async () => {
+test('multiple page targets keep the selected theme when at least one page is healthy', () => {
+  const summary = partitionThemeVerificationResults([
+    { ok: false, route: null },
+    { ok: true, route: 'home' },
+    { ok: false, route: 'settings' },
+  ]);
+  assert.deepEqual(summary.healthy, [{ ok: true, route: 'home' }]);
+  assert.equal(summary.unhealthy.length, 2);
+});
+
+test('watch retry uses bounded backoff without discarding a valid theme selection', async () => {
+  assert.equal(watchRetryDelay(1), 30_000);
+  assert.equal(watchRetryDelay(2), 60_000);
+  assert.equal(watchRetryDelay(20), 300_000);
+
   const operationsPath = fileURLToPath(new URL('../plugins/codex-theme-studio/runtime/src/operations.mjs', import.meta.url));
   const source = await fs.readFile(operationsPath, 'utf8');
   const cycle = source.slice(source.indexOf('export async function watchCycle'), source.indexOf('export async function watch()'));
-  assert.match(cycle, /\['VERIFY_FAILED', 'THEME_NOT_FOUND'\]\.includes\(error\.code\)/);
-  assert.match(cycle, /await updateState\(\{ activeTheme: null, demoMode: false \}\)/);
-  assert.match(cycle, /return \{ continue: false, deactivated: true \}/);
+  assert.match(cycle, /WATCH_BACKOFF/);
+  assert.match(cycle, /WATCH_RECOVERED/);
+  assert.match(cycle, /if \(error\.code === 'THEME_NOT_FOUND'\)/);
+  assert.doesNotMatch(cycle, /if \(error\.code === 'VERIFY_FAILED'\)/);
 });

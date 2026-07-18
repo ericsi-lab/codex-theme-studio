@@ -8,6 +8,8 @@ const EMPTY_STATE = Object.freeze({
   activeTheme: null,
   defaultThemeApplied: false,
   demoMode: false,
+  watchFailureCount: 0,
+  watchRetryAt: null,
   updatedAt: null,
 });
 

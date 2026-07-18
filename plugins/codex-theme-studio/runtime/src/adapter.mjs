@@ -1,7 +1,7 @@
 import { fail } from './errors.mjs';
 import { imagePayload } from './theme.mjs';
 
-export const ADAPTER_VERSION = 12;
+export const ADAPTER_VERSION = 13;
 
 export const SELECTORS = Object.freeze({
   shell: ['#root', '[data-testid="app-shell"]', 'body'],
@@ -298,6 +298,7 @@ export function injectionExpression(theme, { demoMode = false } = {}) {
     delete next.image;
     const tagged = new Set();
     let dirty = false;
+    let decoratedOnce = false;
     let frameId = 0;
     let timerId = 0;
     let lastDecoratedAt = 0;
@@ -394,11 +395,15 @@ export function injectionExpression(theme, { demoMode = false } = {}) {
     const ensure = () => {
       frameId = 0;
       timerId = 0;
-      if (!dirty || document.hidden) return;
+      // A newly discovered page can already be hidden behind another app window. It still needs
+      // one structural decoration pass so verification does not mistake visibility throttling for
+      // adapter incompatibility. Only later updates are deferred until the page becomes visible.
+      if (!dirty || (document.hidden && decoratedOnce)) return;
       dirty = false;
       lastDecoratedAt = performance.now();
       decorate();
       demo();
+      decoratedOnce = true;
     };
     const schedule = () => {
       dirty = true;

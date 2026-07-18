@@ -17,8 +17,9 @@ When the application version, build, CDHash, executable metadata or signed resou
 6. The runtime stores the adapter version, theme fingerprint and demo-mode state. A new page or
    stale runtime is reconciled by the next watcher cycle.
 7. If post-injection verification fails, the watcher gives transient route structure a bounded
-   stabilization window. A persistent failure restores the incomplete page, clears the active
-   theme, stops automatic retries and records the error.
+   stabilization window. It restores only incomplete targets, retains the selected theme, and
+   retries with exponential backoff capped at five minutes. One healthy main page is enough to
+   keep the theme active while auxiliary renderers recover independently.
 
 Run the sanitized check after an official desktop update:
 
@@ -47,7 +48,7 @@ Theme data remains in the stable compatibility directory throughout the display-
   process validity no longer matches.
 - `TARGET_IDENTITY_FAILED`: the current renderer is not a supported home/task page.
 - `VERIFY_FAILED`: the page adapter contract changed after injection; the incomplete theme is
-  restored and automatic retries stop until the user explicitly applies a compatible theme.
+  restored while the selected theme is retained for a bounded automatic or explicit retry.
 - `CDP_UNAVAILABLE`: the official app was not launched in loopback-only theme mode.
 
 An upgrade never deletes user themes. If the official updater restarts the app without the local

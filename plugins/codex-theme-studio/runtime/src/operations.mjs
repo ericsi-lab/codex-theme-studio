@@ -46,6 +46,8 @@ const WATCHER_SCRIPT = path.join(INSTALL_ROOT, 'runtime/bin/theme-watcher.sh');
 const RUNTIME_LOG = path.join(LOG_DIR, 'runtime.log');
 const WATCH_VERIFY_ATTEMPTS = 8;
 const WATCH_VERIFY_DELAY_MS = 250;
+const WATCH_RETRY_BASE_MS = 30_000;
+const WATCH_RETRY_MAX_MS = 5 * 60_000;
 export const LAUNCHER_BUNDLE_IDENTIFIER = 'io.github.ericsi-lab.theme-studio-for-codex.launcher';
 const LAUNCHER_BUILD_VERSION = String(
   VERSION.split('.').map(Number).reduce((build, part) => (build * 1_000) + part, 0),
@@ -532,16 +534,29 @@ export async function applyTheme(id, { daemon = true } = {}) {
   const state = await readState();
   let pages;
   try {
-    pages = await inject(theme, state.demoMode);
-    await verifyInjectedTheme(theme, state.demoMode);
+    await inject(theme, state.demoMode);
+    pages = await verifyInjectedTheme(theme, state.demoMode);
   } catch (error) {
     await stopDaemon();
-    await updateState({ activeTheme: null, demoMode: false });
+    // Verification already restores incomplete decorations. Preserve the user's previous theme
+    // selection so a transient page or desktop-app failure can be retried instead of becoming an
+    // irreversible loss of state.
+    await updateState({
+      activeTheme: state.activeTheme,
+      demoMode: state.demoMode,
+      watchFailureCount: 0,
+      watchRetryAt: null,
+    });
     throw error;
   }
   // Any permanent user choice consumes the one-time featured default. A later restore therefore
   // remains respected instead of causing the launcher to reapply 龙渊灵姬 on its next open.
-  await updateState({ activeTheme: theme.id, defaultThemeApplied: true });
+  await updateState({
+    activeTheme: theme.id,
+    defaultThemeApplied: true,
+    watchFailureCount: 0,
+    watchRetryAt: null,
+  });
   const watcher = daemon ? await startDaemon() : null;
   return { ok: true, theme: { id: theme.id, name: theme.name }, pages: pages.length, watcher };
 }
@@ -584,9 +599,14 @@ export async function previewTheme(id, seconds = 30) {
         await restorePages();
       }
     } catch (restoreError) {
-      // A failed rollback is terminal: remove any remaining decoration and stop claiming an active theme.
+      // Remove incomplete decoration, but retain the user's prior selection for an explicit retry.
       await restorePages().catch(() => []);
-      await updateState({ activeTheme: null, demoMode: false });
+      await updateState({
+        activeTheme: state.activeTheme,
+        demoMode: state.demoMode,
+        watchFailureCount: 1,
+        watchRetryAt: null,
+      });
       if (!previewError) previewError = restoreError;
     }
   }
@@ -599,13 +619,18 @@ async function verifyInjectedTheme(theme, demoMode = null) {
   const fingerprint = typeof theme === 'string' ? null : theme.fingerprint;
   const results = await withCodexPages(async session => {
     await assertPageIdentity(session);
-    return session.evaluate(verifyExpression(themeId, fingerprint, demoMode));
+    const result = await session.evaluate(verifyExpression(themeId, fingerprint, demoMode));
+    // One auxiliary or hidden renderer must not restore otherwise healthy Codex pages. Clean up
+    // only the incomplete target here, then decide success from the aggregate below.
+    if (!result?.ok) await session.evaluate(restoreExpression()).catch(() => true);
+    return result;
   });
-  if (!results.length || results.some(result => !result?.ok)) {
+  const { healthy } = partitionThemeVerificationResults(results);
+  if (!healthy.length) {
     await restorePages({ alreadyVerified: true });
     fail('VERIFY_FAILED', 'Theme verification failed and the original appearance was restored.', { results });
   }
-  return results;
+  return healthy;
 }
 
 export async function verifyTheme() {
@@ -618,7 +643,9 @@ export async function verifyTheme() {
     return { ok: true, themeId: state.activeTheme, pages: results.length, checks: results };
   } catch (error) {
     await stopDaemon();
-    await updateState({ activeTheme: null, demoMode: false });
+    // Keep the desired theme ID. The page has already been restored and the stopped watcher will
+    // not reapply it until the user retries or re-enables theme mode.
+    await updateState({ watchFailureCount: 1, watchRetryAt: null });
     throw error;
   }
 }
@@ -667,7 +694,12 @@ export async function checkCompatibility() {
 export async function restore() {
   await stopDaemon();
   const pages = await restorePages();
-  await updateState({ activeTheme: null, demoMode: false });
+  await updateState({
+    activeTheme: null,
+    demoMode: false,
+    watchFailureCount: 0,
+    watchRetryAt: null,
+  });
   return { ok: true, restored: true, pages: pages.length };
 }
 
@@ -728,6 +760,35 @@ export async function waitForStableThemeVerification(
 }
 
 /**
+ * Separates healthy targets from incomplete auxiliary or hidden renderers.
+ *
+ * A desktop release can expose several eligible page targets at once. Theme health is therefore
+ * established by at least one complete Codex page instead of requiring every auxiliary renderer
+ * to have the same layout at the same moment.
+ *
+ * @param {object[]} results Sanitized page verification results.
+ * @returns {{healthy: object[], unhealthy: object[]}} Stable aggregate without page text.
+ */
+export function partitionThemeVerificationResults(results = []) {
+  const healthy = results.filter(result => result?.ok);
+  return { healthy, unhealthy: results.filter(result => !result?.ok) };
+}
+
+/**
+ * Computes a bounded exponential retry delay after every all-page verification failure.
+ *
+ * Backoff prevents visible restore/reapply flicker while retaining the user's selected theme so a
+ * later healthy page or official app restart can recover automatically.
+ *
+ * @param {number} failureCount Consecutive all-page failures, starting at one.
+ * @returns {number} Retry delay in milliseconds, capped at five minutes.
+ */
+export function watchRetryDelay(failureCount) {
+  const exponent = Math.max(0, Math.min(10, Number(failureCount || 1) - 1));
+  return Math.min(WATCH_RETRY_MAX_MS, WATCH_RETRY_BASE_MS * (2 ** exponent));
+}
+
+/**
  * Reconciles the active theme once, then returns so the full Node/CDP process can exit.
  *
  * A short-lived cycle is intentional: retaining the complete Node runtime between 30-second
@@ -741,6 +802,11 @@ export async function watchCycle() {
   if (!state.activeTheme) {
     if (process.env.CTS_DAEMON === '1') await fs.rm(DAEMON_FILE, { force: true });
     return { continue: false };
+  }
+
+  const retryAt = Date.parse(state.watchRetryAt || '');
+  if (Number.isFinite(retryAt) && retryAt > Date.now()) {
+    return { continue: true, suspended: true, retryAt: state.watchRetryAt };
   }
 
   try {
@@ -763,18 +829,42 @@ export async function watchCycle() {
       );
       if (!status?.ok) {
         await session.evaluate(restoreExpression()).catch(() => true);
-        fail('VERIFY_FAILED', 'The page adapter changed and the incomplete theme was restored.');
       }
       return status;
     });
-    return { continue: true, pages: results.length };
+    const { healthy, unhealthy } = partitionThemeVerificationResults(results);
+    if (!healthy.length) {
+      const failureCount = Number(state.watchFailureCount || 0) + 1;
+      const retryDelay = watchRetryDelay(failureCount);
+      const nextRetryAt = new Date(Date.now() + retryDelay).toISOString();
+      await updateState({ watchFailureCount: failureCount, watchRetryAt: nextRetryAt });
+      await appendRuntimeEvent('WATCH_BACKOFF');
+      return {
+        continue: true,
+        pages: 0,
+        unhealthyPages: unhealthy.length,
+        suspended: true,
+        retryAt: nextRetryAt,
+      };
+    }
+    if (state.watchFailureCount || state.watchRetryAt) {
+      await updateState({ watchFailureCount: 0, watchRetryAt: null });
+      await appendRuntimeEvent('WATCH_RECOVERED');
+    }
+    if (unhealthy.length) await appendRuntimeEvent('WATCH_PARTIAL');
+    return { continue: true, pages: healthy.length, unhealthyPages: unhealthy.length };
   } catch (error) {
     await appendRuntimeEvent(error.code || 'WATCH_ERROR');
-    if (['VERIFY_FAILED', 'THEME_NOT_FOUND'].includes(error.code)) {
-      // A persistent adapter failure is fail-closed. Keeping activeTheme set would make the
-      // 30-second supervisor reapply the same theme after every restore, causing visible flicker.
+    if (error.code === 'THEME_NOT_FOUND') {
+      // A removed theme cannot recover. Unlike page verification failures, clearing this missing
+      // identifier prevents an endless lookup loop without discarding a valid user selection.
       await restorePages({ alreadyVerified: true }).catch(() => []);
-      await updateState({ activeTheme: null, demoMode: false });
+      await updateState({
+        activeTheme: null,
+        demoMode: false,
+        watchFailureCount: 0,
+        watchRetryAt: null,
+      });
       await appendRuntimeEvent('WATCH_DEACTIVATED');
       return { continue: false, deactivated: true };
     }

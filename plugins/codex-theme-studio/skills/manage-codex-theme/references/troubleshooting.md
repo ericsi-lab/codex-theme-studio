@@ -15,5 +15,6 @@
 - `THEME_INVALID`: fix the field or image issue reported by the validator; do not weaken limits.
 - `PREVIEW_TIMEOUT`: expected automatic restore. Apply only after the user chooses the theme.
 - `VERIFY_FAILED`: run `restore`, leave the app usable, and report the failing interaction check.
-  The background watcher also deactivates the theme after a persistent verification failure; it
-  must not restore and then silently reapply the same incompatible theme on the next cycle.
+  The background watcher restores only incomplete targets, keeps the user's selected theme, and
+  retries with bounded backoff. A healthy main page is not deactivated because an auxiliary or
+  hidden renderer is temporarily incomplete.
