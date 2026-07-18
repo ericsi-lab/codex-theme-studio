@@ -17,6 +17,9 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Fixed
 
+- Hidden pages now receive one initial decoration pass, one incomplete auxiliary renderer no
+  longer deactivates healthy pages, and watcher verification failures retain the selected theme
+  with bounded retry backoff instead of making recovery impossible.
 - Official ChatGPT builds are no longer blocked by a transient static resource-envelope false
   negative. Bundle identity remains required, and macOS must validate the running PID plus its
   OpenAI Developer ID chain before the runtime connects to loopback CDP.
