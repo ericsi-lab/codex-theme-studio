@@ -96,6 +96,25 @@ test('release packaging removes an older ZIP before rebuilding', async () => {
   assert.ok(removeArchive < createArchive);
 });
 
+test('repository readmes provide reciprocal language navigation and core guidance', async () => {
+  const chineseReadmePath = fileURLToPath(new URL('../README.md', import.meta.url));
+  const englishReadmePath = fileURLToPath(new URL('../README.en.md', import.meta.url));
+  const [chinese, english] = await Promise.all([
+    fs.readFile(chineseReadmePath, 'utf8'),
+    fs.readFile(englishReadmePath, 'utf8'),
+  ]);
+
+  // Keep both entry points discoverable and prevent the English guide from becoming a summary.
+  assert.match(chinese, /href="\.\/README\.en\.md">English<\/a>/);
+  assert.match(english, /href="\.\/README\.md">简体中文<\/a>/);
+  for (const section of ['## Installation', '## Theme packages', '## Security design', '## Roadmap']) {
+    assert.ok(english.includes(section), `README.en.md is missing ${section}`);
+  }
+  assert.match(english, /macOS only/i);
+  assert.match(english, /Wan Yao Codex · Longyuan Spirit/);
+  assert.match(english, /Not affiliated with or endorsed by OpenAI/);
+});
+
 test('real sample capture preserves project and workspace labels', async () => {
   const captureScript = fileURLToPath(new URL('../tools/capture-real-samples.mjs', import.meta.url));
   const source = await fs.readFile(captureScript, 'utf8');

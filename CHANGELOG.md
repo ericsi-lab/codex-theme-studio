@@ -6,6 +6,7 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Changed
 
+- Added a full English README with reciprocal language navigation and release-audit coverage.
 - README gallery now uses a reproducible compact 18-theme layout with larger exact labels.
 - First-time installation docs now lead with the verified “paste the GitHub URL into a Codex task”
   flow and retain Marketplace installation as the manual alternative.

@@ -16,7 +16,7 @@ async function requireFile(relativePath) {
 }
 
 const requiredPublicFiles = [
-  'LICENSE', 'NOTICE.md', 'README.md', 'SECURITY.md', 'PRIVACY.md',
+  'LICENSE', 'NOTICE.md', 'README.md', 'README.en.md', 'SECURITY.md', 'PRIVACY.md',
   'CODE_OF_CONDUCT.md', 'CONTRIBUTING.md', 'ASSETS-LICENSE.md',
   '.agents/plugins/marketplace.json',
   'plugins/codex-theme-studio/.codex-plugin/plugin.json',
