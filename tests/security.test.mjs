@@ -20,14 +20,17 @@ import {
   designatedRequirementMatches,
   identityCacheMatches,
   enableThemeMode,
+  processCommandMatchesExecutable,
   restartCommand,
   runningSignatureMatches,
+  waitForThemeModeRuntime,
 } from '../plugins/codex-theme-studio/runtime/src/system.mjs';
 import {
   activationThemeForState,
   LAUNCHER_BUNDLE_IDENTIFIER,
   launcherAppleScript,
   partitionThemeVerificationResults,
+  waitForThemeActivationPage,
   waitForStableThemeVerification,
   watchRetryDelay,
 } from '../plugins/codex-theme-studio/runtime/src/operations.mjs';
@@ -43,6 +46,58 @@ test('accepts loopback CDP URLs only', () => {
   assert.equal(validateLoopbackUrl('ws://[::1]:9222/devtools/page/a', ['ws:']).hostname, '[::1]');
   assert.throws(() => validateLoopbackUrl('http://0.0.0.0:9222'), error => error.code === 'CDP_NOT_LOOPBACK');
   assert.throws(() => validateLoopbackUrl('https://example.com'), error => error.code === 'CDP_INVALID_URL');
+});
+
+test('process identity requires the official executable to start the command', () => {
+  const executable = '/Applications/ChatGPT.app/Contents/MacOS/ChatGPT';
+  assert.equal(processCommandMatchesExecutable(`${executable} --remote-debugging-port=9222`, executable), true);
+  assert.equal(processCommandMatchesExecutable(executable, executable), true);
+  assert.equal(processCommandMatchesExecutable(`/bin/zsh -c inspect ${executable}`, executable), false);
+  assert.equal(processCommandMatchesExecutable('/tmp/ChatGPT --remote-debugging-port=9222', executable), false);
+});
+
+test('theme-mode runtime health retries transient startup failures only', async () => {
+  const statuses = [
+    Object.assign(new Error('transport pending'), { code: 'CDP_UNAVAILABLE' }),
+    Object.assign(new Error('page pending'), { code: 'TARGET_IDENTITY_FAILED' }),
+    { ok: true },
+  ];
+  const delays = [];
+  const result = await waitForThemeModeRuntime(
+    async () => {
+      const status = statuses.shift();
+      if (status instanceof Error) throw status;
+      return status;
+    },
+    { attempts: 4, delayMs: 25, delay: async milliseconds => delays.push(milliseconds) },
+  );
+  assert.deepEqual(result, { ok: true });
+  assert.deepEqual(delays, [25, 25]);
+
+  await assert.rejects(
+    waitForThemeModeRuntime(
+      async () => { throw Object.assign(new Error('signature'), { code: 'APP_IDENTITY_FAILED' }); },
+      { delay: async () => assert.fail('must not retry identity failures') },
+    ),
+    error => error.code === 'APP_IDENTITY_FAILED',
+  );
+});
+
+test('launcher waits for a semantic app page after CDP becomes reachable', async () => {
+  let attempt = 0;
+  const delays = [];
+  const result = await waitForThemeActivationPage({
+    attempts: 4,
+    delayMs: 25,
+    delay: async milliseconds => delays.push(milliseconds),
+    probe: async () => {
+      attempt += 1;
+      if (attempt < 3) throw Object.assign(new Error('helper target only'), { code: 'TARGET_IDENTITY_FAILED' });
+      return ['home'];
+    },
+  });
+  assert.deepEqual(result, ['home']);
+  assert.deepEqual(delays, [25, 25]);
 });
 
 test('skips internal app targets that fail page identity while keeping eligible pages', async () => {
@@ -172,8 +227,21 @@ test('launcher copy is accurate for both current ChatGPT and legacy Codex', () =
   assert.match(source, /with title "Theme Studio for Codex"/);
   assert.match(source, /万妖图录·龙渊灵姬/);
   assert.match(source, /首次启用/);
+  assert.match(source, /\/usr\/bin\/nohup/);
+  assert.match(source, /<\/dev\/null >\/dev\/null 2>&1 &/);
+  assert.match(source, /正在后台启用主题模式/);
+  assert.doesNotMatch(source, /enable --confirmed/);
   assert.doesNotMatch(source, /安全重启 ChatGPT 并/);
   assert.doesNotMatch(source, /with title "Codex Theme Studio"/);
+});
+
+test('launcher helper reports completion after running the deterministic wrapper', async () => {
+  const helperPath = fileURLToPath(new URL('../plugins/codex-theme-studio/scripts/launcher-enable', import.meta.url));
+  const source = await fs.readFile(helperPath, 'utf8');
+  assert.match(source, /"\$SCRIPT_DIR\/cts" enable --confirmed/);
+  assert.match(source, /主题模式已启用/);
+  assert.match(source, /主题模式启用失败/);
+  assert.doesNotMatch(source, /\/Applications\/ChatGPT\.app/);
 });
 
 test('launcher AppleScript remains compilable after onboarding copy changes', async t => {

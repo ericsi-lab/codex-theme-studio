@@ -46,6 +46,8 @@ const WATCHER_SCRIPT = path.join(INSTALL_ROOT, 'runtime/bin/theme-watcher.sh');
 const RUNTIME_LOG = path.join(LOG_DIR, 'runtime.log');
 const WATCH_VERIFY_ATTEMPTS = 8;
 const WATCH_VERIFY_DELAY_MS = 250;
+const ACTIVATION_READY_ATTEMPTS = 40;
+const ACTIVATION_READY_DELAY_MS = 250;
 const WATCH_RETRY_BASE_MS = 30_000;
 const WATCH_RETRY_MAX_MS = 5 * 60_000;
 export const LAUNCHER_BUNDLE_IDENTIFIER = 'io.github.ericsi-lab.theme-studio-for-codex.launcher';
@@ -80,7 +82,7 @@ function appleScriptString(value) {
  * The launcher delegates application selection to the verified runtime so the same generated app
  * remains accurate for current ChatGPT and legacy Codex installations.
  *
- * @param {string} command Absolute path to the installed deterministic CLI wrapper.
+ * @param {string} command Absolute path to the installed detached launcher helper.
  * @returns {string} AppleScript source compiled into the user-owned launcher application.
  */
 export function launcherAppleScript(command) {
@@ -88,10 +90,10 @@ export function launcherAppleScript(command) {
     'on run',
     `  display dialog "将安全重启 ChatGPT 或旧版 Codex，并启用本机主题模式。首次启用会自动应用《${DEFAULT_THEME_NAME}》，以后会保留你的选择。不会修改官方应用。" buttons {"取消", "启用主题模式"} default button "启用主题模式" with title "Theme Studio for Codex"`,
     '  try',
-    `    do shell script quoted form of "${appleScriptString(command)}" & " enable --confirmed"`,
-    `    display notification "主题模式已启用。新安装会应用${DEFAULT_THEME_NAME}；已有选择或原始界面保持不变。" with title "Theme Studio for Codex"`,
+    `    do shell script "/usr/bin/nohup " & quoted form of "${appleScriptString(command)}" & " </dev/null >/dev/null 2>&1 &"`,
+    '    display notification "正在后台启用主题模式；Theme Studio 会立即退出。" with title "Theme Studio for Codex"',
     '  on error',
-    '    display dialog "启用失败。请回到官方桌面应用说：检查主题。" buttons {"好"} default button "好" with title "Theme Studio for Codex"',
+    '    display dialog "后台任务未能启动。请回到官方桌面应用说：检查主题。" buttons {"好"} default button "好" with title "Theme Studio for Codex"',
     '  end try',
     'end run',
     '',
@@ -224,7 +226,7 @@ async function installLauncher() {
   if (existing && !managed) fail('LAUNCHER_CONFLICT', 'An unrelated Theme Studio for Codex.app already exists.');
   const legacyManaged = Boolean(await fs.stat(LEGACY_LAUNCHER_MARKER).catch(() => null));
 
-  const command = path.join(INSTALL_ROOT, 'scripts', 'cts');
+  const command = path.join(INSTALL_ROOT, 'scripts', 'launcher-enable');
   const source = launcherAppleScript(command);
   const sourceFile = path.join(STATE_DIR, `launcher-${process.pid}.applescript`);
   const stagedApp = path.join(STATE_DIR, `launcher-${process.pid}.app`);
@@ -496,6 +498,40 @@ export function activationThemeForState(state, requestedThemeId = null) {
 }
 
 /**
+ * Waits for a normal home/task/settings renderer before launcher activation applies a theme.
+ *
+ * CDP can expose internal helper targets before React mounts a usable page. Doctor intentionally
+ * verifies only process and transport identity, so activation adds this bounded semantic readiness
+ * gate rather than failing the whole launcher operation on the first helper-only target list.
+ *
+ * @param {{attempts?: number, delayMs?: number, delay?: (ms: number) => Promise<void>, probe?: () => Promise<unknown>}} options
+ * Bounded readiness controls; tests inject probe and delay functions.
+ * @returns {Promise<unknown>} First successful page-identity probe result.
+ * @throws {Error} Last readiness error after the bounded window.
+ */
+export async function waitForThemeActivationPage({
+  attempts = ACTIVATION_READY_ATTEMPTS,
+  delayMs = ACTIVATION_READY_DELAY_MS,
+  delay = ms => new Promise(resolve => setTimeout(resolve, ms)),
+  probe = () => withCodexPages(async session => {
+    await assertPageIdentity(session);
+    return true;
+  }),
+} = {}) {
+  let lastError;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await probe();
+    } catch (error) {
+      if (!['CDP_UNAVAILABLE', 'TARGET_IDENTITY_FAILED'].includes(error?.code)) throw error;
+      lastError = error;
+      if (attempt + 1 < attempts) await delay(delayMs);
+    }
+  }
+  throw lastError;
+}
+
+/**
  * Enables loopback-only theme mode and restores the user's theme in one deterministic command.
  *
  * The launcher uses this operation so first use cannot stop at “ChatGPT reopened but no theme was
@@ -507,13 +543,25 @@ export function activationThemeForState(state, requestedThemeId = null) {
  * optional theme ID resolved from the user's current request.
  * @returns {Promise<object>} Sanitized runtime and applied-theme status for user-facing feedback.
  */
-export async function activateThemeMode({ confirmed = false, requestedThemeId = null } = {}) {
+export async function activateThemeMode(options = {}) {
+  try {
+    return await activateThemeModeUnchecked(options);
+  } catch (error) {
+    // Persist only a stable code so launcher failures remain diagnosable without recording page
+    // text, task names, usernames, shell output, or absolute paths.
+    await appendRuntimeEvent(`ENABLE_${error?.code || 'UNEXPECTED_ERROR'}`);
+    throw error;
+  }
+}
+
+async function activateThemeModeUnchecked({ confirmed = false, requestedThemeId = null } = {}) {
   // Validate an explicit choice before restarting the desktop app so a typo cannot cause an
   // unnecessary interruption and then fail only after ChatGPT returns.
   if (requestedThemeId && !TEST_MODE) {
     await findTheme(requestedThemeId, { loadImage: false });
   }
   const runtime = await enableThemeMode({ confirmed });
+  if (!TEST_MODE) await waitForThemeActivationPage();
   const state = await readState();
   const target = activationThemeForState(state, requestedThemeId);
   if (!target || TEST_MODE) {

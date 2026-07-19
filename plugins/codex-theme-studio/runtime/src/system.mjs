@@ -16,6 +16,12 @@ const execFile = promisify(execFileCallback);
 const BUNDLE_ID = 'com.openai.codex';
 const OPENAI_TEAM_ID = '2DC432GLL2';
 const IDENTITY_CACHE_SCHEMA = 2;
+const TRANSIENT_THEME_MODE_ERRORS = new Set([
+  'APP_NOT_RUNNING',
+  'CDP_PROCESS_MISMATCH',
+  'CDP_UNAVAILABLE',
+  'TARGET_IDENTITY_FAILED',
+]);
 
 async function run(command, args) {
   return execFile(command, args, { timeout: 4_000, maxBuffer: 1024 * 1024 });
@@ -254,6 +260,22 @@ async function cachedVerifiedBundle(bundles) {
   return null;
 }
 
+/**
+ * Matches only the executable that starts a process command, not an incidental argument string.
+ *
+ * Diagnostics and launch scripts can legitimately mention the ChatGPT executable path. Treating
+ * any substring match as the official process can select the diagnostic shell itself and report a
+ * false CDP ownership failure.
+ *
+ * @param {string} command Full command reported by macOS `ps`; must not be empty.
+ * @param {string} executable Resolved official app executable path; must not be empty.
+ * @returns {boolean} Whether the process was launched by exactly that executable.
+ */
+export function processCommandMatchesExecutable(command, executable) {
+  const normalized = String(command || '').trim();
+  return Boolean(executable) && (normalized === executable || normalized.startsWith(`${executable} `));
+}
+
 export async function resolveApplication({ verifySignature = true } = {}) {
   const found = [];
   for (const candidate of APPLICATION_BUNDLES) {
@@ -281,7 +303,10 @@ export async function resolveApplication({ verifySignature = true } = {}) {
 
 async function verifyProcess(bundle) {
   const { stdout } = await run('/bin/ps', ['-axo', 'pid=,command=']);
-  const line = stdout.split('\n').find(item => item.trim().match(/^\d+\s+/) && item.includes(bundle.executable));
+  const line = stdout.split('\n').find(item => {
+    const match = item.trim().match(/^\d+\s+(.+)$/);
+    return match && processCommandMatchesExecutable(match[1], bundle.executable);
+  });
   if (!line) fail('APP_NOT_RUNNING', `${bundle.displayName} is not running.`);
   const command = line.trim().replace(/^\d+\s+/, '');
   const origin = new URL(CDP_ORIGIN);
@@ -308,13 +333,47 @@ async function applicationProcesses(bundle) {
   const { stdout } = await run('/bin/ps', ['-axo', 'pid=,command=']);
   return stdout.split('\n').flatMap(item => {
     const match = item.trim().match(/^(\d+)\s+(.+)$/);
-    if (!match || !match[2].includes(bundle.executable)) return [];
+    if (!match || !processCommandMatchesExecutable(match[2], bundle.executable)) return [];
     return [{ pid: Number(match[1]), command: match[2] }];
   });
 }
 
 function delay(milliseconds) {
   return new Promise(resolve => setTimeout(resolve, milliseconds));
+}
+
+/**
+ * Waits for an already-started official app to expose a healthy loopback theme runtime.
+ *
+ * Electron can keep its main process alive while CDP is briefly unavailable during window
+ * teardown or recreation. A bounded retry prevents the launcher from failing immediately; after
+ * the bound, enableThemeMode can safely restart the process under the user's existing consent.
+ *
+ * @param {() => Promise<object>} inspect Runtime health probe, normally {@link doctor}.
+ * @param {{attempts?: number, delayMs?: number, delay?: (ms: number) => Promise<void>}} options
+ * Bounded retry controls; tests inject the delay to avoid wall-clock waits.
+ * @returns {Promise<object>} First healthy runtime result.
+ * @throws {Error} Last transient error after exhaustion, or the first non-transient error.
+ */
+export async function waitForThemeModeRuntime(
+  inspect,
+  {
+    attempts = 12,
+    delayMs = 250,
+    delay: wait = delay,
+  } = {},
+) {
+  let lastError;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await inspect();
+    } catch (error) {
+      if (!TRANSIENT_THEME_MODE_ERRORS.has(error?.code)) throw error;
+      lastError = error;
+      if (attempt + 1 < attempts) await wait(delayMs);
+    }
+  }
+  throw lastError;
 }
 
 /**
@@ -345,8 +404,14 @@ export async function enableThemeMode({ confirmed = false } = {}) {
     processInfo.command.includes(`--remote-debugging-port=${port}`)
     && processInfo.command.includes('--remote-debugging-address=127.0.0.1'));
   if (enabled) {
-    const runtime = await doctor();
-    return { ...runtime, restarted: false, alreadyEnabled: true };
+    try {
+      const runtime = await waitForThemeModeRuntime(doctor);
+      return { ...runtime, restarted: false, alreadyEnabled: true };
+    } catch (error) {
+      // A stale or suspended theme-mode process is restarted below under the same explicit
+      // consent instead of surfacing a generic launcher failure on one transient health probe.
+      if (!TRANSIENT_THEME_MODE_ERRORS.has(error?.code)) throw error;
+    }
   }
 
   if (processes.length) {
@@ -365,26 +430,15 @@ export async function enableThemeMode({ confirmed = false } = {}) {
     `--remote-debugging-port=${port}`,
   ]).catch(() => fail('APP_LAUNCH_FAILED', `${bundle.displayName} could not be opened in theme mode.`));
 
-  let lastError;
-  for (let attempt = 0; attempt < 180; attempt += 1) {
-    try {
-      const runtime = await doctor();
-      return { ...runtime, restarted: true, alreadyEnabled: false };
-    } catch (error) {
-      lastError = error;
-      if (![
-        'APP_NOT_RUNNING',
-        'CDP_PROCESS_MISMATCH',
-        'CDP_UNAVAILABLE',
-        'TARGET_IDENTITY_FAILED',
-      ].includes(error.code)) throw error;
-      await delay(250);
-    }
+  try {
+    const runtime = await waitForThemeModeRuntime(doctor, { attempts: 180 });
+    return { ...runtime, restarted: true, alreadyEnabled: false };
+  } catch (lastError) {
+    fail('THEME_MODE_TIMEOUT', `${bundle.displayName} did not become ready for themes.`, {
+      cause: lastError?.code || 'UNKNOWN',
+      restartCommand: restartCommand(bundle),
+    });
   }
-  fail('THEME_MODE_TIMEOUT', `${bundle.displayName} did not become ready for themes.`, {
-    cause: lastError?.code || 'UNKNOWN',
-    restartCommand: restartCommand(bundle),
-  });
 }
 
 async function inspectRuntime({ verifySignature, requirePage }) {
