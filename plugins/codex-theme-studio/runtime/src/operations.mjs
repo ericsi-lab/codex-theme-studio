@@ -268,9 +268,16 @@ export async function install() {
   const freshInstall = !previousState.installedVersion;
   const legacyInstallation = Boolean(previousState.installedVersion)
     && previousState.onboardingVersion < 1;
+  // Older runtimes could clear activeTheme after a transient verification failure. Preserve any
+  // surviving selection separately; an ambiguous empty legacy state may safely fall back to the
+  // featured theme only when the user explicitly opens the Theme Studio launcher.
+  const preferredTheme = previousState.preferredTheme || previousState.activeTheme || null;
+  const appearanceRestored = previousState.appearanceRestored === true;
   const nextState = await updateState({
     installedVersion: VERSION,
     onboardingVersion: 1,
+    preferredTheme,
+    appearanceRestored,
     // Existing users keep their current/restored appearance after an upgrade. Only a genuinely
     // fresh installation receives the featured theme on its first theme-mode activation.
     ...(freshInstall ? { defaultThemeApplied: false } : {}),
@@ -289,7 +296,8 @@ export async function install() {
       defaultTheme: {
         id: DEFAULT_THEME_ID,
         name: DEFAULT_THEME_NAME,
-        appliesOnFirstThemeModeActivation: !nextState.defaultThemeApplied && !nextState.activeTheme,
+        appliesOnFirstThemeModeActivation:
+          activationThemeForState(nextState)?.source === 'default',
       },
       nextAction: launcher.installed
         ? `Open ~/Applications/${path.basename(LAUNCHER_APP)} once, or approve theme mode in this task.`
@@ -470,20 +478,21 @@ export async function startDaemon() {
 /**
  * Selects the theme that should be restored or applied when theme mode starts.
  *
- * A theme explicitly requested by the user always wins. Otherwise an existing active theme is
- * restored. The featured default is selected only once for a fresh installation; after the user
- * restores the original appearance, later launcher opens must not silently reapply it.
+ * A theme explicitly requested by the user always wins. Otherwise an existing active or saved
+ * preference is restored. An explicit restore remains authoritative, while an empty legacy state
+ * falls back to the featured theme when the user deliberately opens Theme Studio again.
  *
  * @param {object} state Persisted local theme state; missing optional fields use safe defaults.
  * @param {string|null} requestedThemeId Theme chosen in the current user request, if any.
- * @returns {{id: string, source: 'requested'|'active'|'default'}|null} Activation target or null
- * when theme mode should start without applying a theme.
+ * @returns {{id: string, source: 'requested'|'active'|'preferred'|'default'}|null} Activation
+ * target, or null when the user explicitly chose to keep the original appearance.
  */
 export function activationThemeForState(state, requestedThemeId = null) {
   if (requestedThemeId) return { id: requestedThemeId, source: 'requested' };
   if (state?.activeTheme) return { id: state.activeTheme, source: 'active' };
-  if (!state?.defaultThemeApplied) return { id: DEFAULT_THEME_ID, source: 'default' };
-  return null;
+  if (state?.appearanceRestored) return null;
+  if (state?.preferredTheme) return { id: state.preferredTheme, source: 'preferred' };
+  return { id: DEFAULT_THEME_ID, source: 'default' };
 }
 
 /**
@@ -525,7 +534,7 @@ export async function activateThemeMode({ confirmed = false, requestedThemeId = 
     pages: applied.pages,
     watcher: applied.watcher,
     defaultThemeApplied: target.source === 'default',
-    restoredActiveTheme: target.source === 'active',
+    restoredActiveTheme: ['active', 'preferred'].includes(target.source),
   };
 }
 
@@ -534,6 +543,9 @@ export async function applyTheme(id, { daemon = true } = {}) {
   const state = await readState();
   let pages;
   try {
+    // The resident watcher may still run an older installed adapter during an update. Stop it
+    // before injection so it cannot replace a freshly tagged composer during apply verification.
+    await stopDaemon();
     await inject(theme, state.demoMode);
     pages = await verifyInjectedTheme(theme, state.demoMode);
   } catch (error) {
@@ -549,10 +561,13 @@ export async function applyTheme(id, { daemon = true } = {}) {
     });
     throw error;
   }
-  // Any permanent user choice consumes the one-time featured default. A later restore therefore
-  // remains respected instead of causing the launcher to reapply 龙渊灵姬 on its next open.
+  // Keep the desired theme independently from the current renderer state. This lets the launcher
+  // restore the same choice after ChatGPT exits, while appearanceRestored still records an
+  // explicit request to keep the official appearance.
   await updateState({
     activeTheme: theme.id,
+    preferredTheme: theme.id,
+    appearanceRestored: false,
     defaultThemeApplied: true,
     watchFailureCount: 0,
     watchRetryAt: null,
@@ -619,7 +634,13 @@ async function verifyInjectedTheme(theme, demoMode = null) {
   const fingerprint = typeof theme === 'string' ? null : theme.fingerprint;
   const results = await withCodexPages(async session => {
     await assertPageIdentity(session);
-    const result = await session.evaluate(verifyExpression(themeId, fingerprint, demoMode));
+    // Apply/preview can race a React replacement of the composer immediately after injection.
+    // Use the same bounded stabilization window as the watcher before declaring incompatibility.
+    const result = await waitForStableThemeVerification(
+      session,
+      { id: themeId, fingerprint },
+      demoMode,
+    );
     // One auxiliary or hidden renderer must not restore otherwise healthy Codex pages. Clean up
     // only the incomplete target here, then decide success from the aggregate below.
     if (!result?.ok) await session.evaluate(restoreExpression()).catch(() => true);
@@ -696,6 +717,7 @@ export async function restore() {
   const pages = await restorePages();
   await updateState({
     activeTheme: null,
+    appearanceRestored: true,
     demoMode: false,
     watchFailureCount: 0,
     watchRetryAt: null,
@@ -861,6 +883,8 @@ export async function watchCycle() {
       await restorePages({ alreadyVerified: true }).catch(() => []);
       await updateState({
         activeTheme: null,
+        preferredTheme: null,
+        appearanceRestored: false,
         demoMode: false,
         watchFailureCount: 0,
         watchRetryAt: null,

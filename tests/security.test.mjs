@@ -96,7 +96,9 @@ test('adapter injection and restore expressions are parseable', () => {
   assert.match(expression, /--color-background-elevated-primary:var\(--cts-elevated\)/);
   assert.match(expression, /--vscode-menu-background:var\(--cts-elevated\)/);
   assert.match(expression, /html\.cts-theme body,html\.cts-theme #root\{--cts-panel-solid:/);
-  assert.match(expression, /\.composer-surface-chrome,\[data-testid\*="composer"\],form/);
+  assert.match(expression, /\.composer-surface-chrome,\[data-testid\*="composer" i\],form,\[role="form"\]/);
+  assert.match(expression, /const composerScore = input/);
+  assert.match(expression, /attributeFilter: \['role', 'contenteditable', 'data-testid', 'disabled', 'aria-disabled'\]/);
   assert.match(expression, /\.app-theme:has\(\.xterm\)/);
   assert.match(expression, /--vscode-terminal-background:var\(--cts-panel-solid\)!important/);
   assert.match(expression, /\.xterm-rows\{color:var\(--cts-text\)!important/);
@@ -125,9 +127,36 @@ test('adapter injection and restore expressions are parseable', () => {
 test('adapter keeps centralized interactive selectors', () => {
   assert.ok(SELECTORS.sidebar.length >= 2);
   assert.ok(SELECTORS.composerInput.includes('textarea'));
+  assert.ok(SELECTORS.composerInput.includes('[role="textbox"]'));
+  assert.ok(SELECTORS.composerInput.includes('[contenteditable]:not([contenteditable="false" i])'));
   assert.ok(SELECTORS.taskContent.includes('[data-thread-find-target="conversation"]'));
   assert.ok(SELECTORS.settingsControl.includes('[role="switch"]'));
   assert.equal(SELECTORS.privateSurface, undefined);
+});
+
+test('current ChatGPT home and task composer variants remain discoverable by capability', async () => {
+  const fixturePath = fileURLToPath(new URL('./fixtures/chatgpt-26.715.31925-composer.json', import.meta.url));
+  const fixture = JSON.parse(await fs.readFile(fixturePath, 'utf8'));
+  const task = fixture.variants.find(variant => variant.route === 'task');
+  const home = fixture.variants.find(variant => variant.route === 'home');
+  assert.equal(task.input.tagName, 'DIV');
+  assert.equal(task.input.attributes.contenteditable, 'true');
+  assert.equal(home.input.tagName, 'TEXTAREA');
+  assert.ok(SELECTORS.composerInput.includes('textarea'));
+  assert.ok(SELECTORS.composerInput.some(selector => selector.includes('[contenteditable]:not(')));
+
+  const expression = injectionExpression({
+    id: 'fixture-theme',
+    name: 'Fixture',
+    appearance: 'dark',
+    fingerprint: 'fixture-fingerprint',
+    colors: { accent: '#72D6C9', surface: '#101820CC', text: '#F4F7F6', mutedText: '#C2CECB', overlay: '#07110E66' },
+    art: { focusX: 0.8, focusY: 0.5, safeArea: 0.55, safeSide: 'left', homeMode: 'hero', taskMode: 'ambient' },
+    effects: { preset: 'none', intensity: 0, motion: false },
+    image: { mime: 'image/png', buffer: Buffer.from('png') },
+  });
+  assert.match(expression, /\[data-testid\*="composer" i\]/);
+  assert.match(expression, /composerScore\(b\) - composerScore\(a\)/);
 });
 
 test('restart command supports current ChatGPT and legacy Codex names', () => {
@@ -176,22 +205,34 @@ test('launcher bundle identifier belongs to the publishing repository', () => {
   );
 });
 
-test('theme-mode activation uses a requested theme, current theme, then one-time default', () => {
+test('theme-mode activation restores active and saved themes before using the default', () => {
   assert.deepEqual(
-    activationThemeForState({ activeTheme: 'fortune-guardian', defaultThemeApplied: false }, 'aurora-glass'),
+    activationThemeForState({ activeTheme: 'fortune-guardian' }, 'aurora-glass'),
     { id: 'aurora-glass', source: 'requested' },
   );
   assert.deepEqual(
-    activationThemeForState({ activeTheme: 'fortune-guardian', defaultThemeApplied: false }),
+    activationThemeForState({ activeTheme: 'fortune-guardian' }),
     { id: 'fortune-guardian', source: 'active' },
   );
   assert.deepEqual(
-    activationThemeForState({ activeTheme: null, defaultThemeApplied: false }),
+    activationThemeForState({ activeTheme: null, preferredTheme: 'fortune-guardian' }),
+    { id: 'fortune-guardian', source: 'preferred' },
+  );
+  assert.deepEqual(
+    activationThemeForState({ activeTheme: null, defaultThemeApplied: true }),
     { id: 'wan-yao-longyuan-lingji', source: 'default' },
   );
   assert.equal(
-    activationThemeForState({ activeTheme: null, defaultThemeApplied: true }),
+    activationThemeForState({
+      activeTheme: null,
+      preferredTheme: 'fortune-guardian',
+      appearanceRestored: true,
+    }),
     null,
+  );
+  assert.deepEqual(
+    activationThemeForState({ appearanceRestored: true }, 'aurora-glass'),
+    { id: 'aurora-glass', source: 'requested' },
   );
 });
 
@@ -344,6 +385,23 @@ test('watcher waits for transient route structure and accepts the first stable v
   );
   assert.equal(result.ok, true);
   assert.deepEqual(delays, [25, 25]);
+});
+
+test('apply verification uses the bounded stabilization window before rollback', async () => {
+  const operationsPath = fileURLToPath(new URL('../plugins/codex-theme-studio/runtime/src/operations.mjs', import.meta.url));
+  const source = await fs.readFile(operationsPath, 'utf8');
+  const verify = source.slice(source.indexOf('async function verifyInjectedTheme'), source.indexOf('export async function verifyTheme'));
+  assert.match(verify, /await waitForStableThemeVerification\(/);
+  assert.ok(verify.indexOf('await waitForStableThemeVerification(') < verify.indexOf('restoreExpression()'));
+
+  const apply = source.slice(source.indexOf('export async function applyTheme'), source.indexOf('export async function previewTheme'));
+  assert.ok(apply.indexOf('await stopDaemon()') < apply.indexOf('await inject(theme, state.demoMode)'));
+  assert.match(apply, /preferredTheme: theme\.id/);
+  assert.match(apply, /appearanceRestored: false/);
+
+  const restore = source.slice(source.indexOf('export async function restore()'), source.indexOf('export async function setDemoMode'));
+  assert.match(restore, /activeTheme: null/);
+  assert.match(restore, /appearanceRestored: true/);
 });
 
 test('multiple page targets keep the selected theme when at least one page is healthy', () => {

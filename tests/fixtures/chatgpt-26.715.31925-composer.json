@@ -1,0 +1,25 @@
+{
+  "application": "ChatGPT",
+  "version": "26.715.31925",
+  "build": "5551",
+  "variants": [
+    {
+      "route": "task",
+      "input": {
+        "tagName": "DIV",
+        "attributes": {
+          "contenteditable": "true"
+        },
+        "composerRelated": false
+      }
+    },
+    {
+      "route": "home",
+      "input": {
+        "tagName": "TEXTAREA",
+        "attributes": {},
+        "composerRelated": true
+      }
+    }
+  ]
+}
