@@ -17,6 +17,12 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Fixed
 
+- ChatGPT 26.715.31925 composers are detected through textbox, editable and form capabilities;
+  apply now waits for React remounts to stabilize and prevents an older watcher from racing the
+  new adapter before verification.
+- Theme Studio now persists the selected theme separately from renderer health, restores it after
+  ChatGPT exits, and gives legacy states cleared by older verification failures a default fallback;
+  an explicit restore still keeps the official appearance.
 - Hidden pages now receive one initial decoration pass, one incomplete auxiliary renderer no
   longer deactivates healthy pages, and watcher verification failures retain the selected theme
   with bounded retry backoff instead of making recovery impossible.

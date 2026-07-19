@@ -1,12 +1,19 @@
 import { fail } from './errors.mjs';
 import { imagePayload } from './theme.mjs';
 
-export const ADAPTER_VERSION = 13;
+export const ADAPTER_VERSION = 14;
 
 export const SELECTORS = Object.freeze({
   shell: ['#root', '[data-testid="app-shell"]', 'body'],
   sidebar: ['[data-testid*="sidebar"]', 'aside'],
-  composerInput: ['[data-testid*="composer"] textarea', 'textarea', '[contenteditable="true"]'],
+  composerInput: [
+    '[data-testid*="composer" i] textarea',
+    '[data-testid*="composer" i] [role="textbox"]',
+    '[data-testid*="composer" i] [contenteditable]:not([contenteditable="false" i])',
+    'textarea',
+    '[role="textbox"]',
+    '[contenteditable]:not([contenteditable="false" i])',
+  ],
   taskContent: [
     '[data-message-author-role]',
     '[data-thread-find-target="conversation"]',
@@ -333,7 +340,7 @@ export function injectionExpression(theme, { demoMode = false } = {}) {
     const composerContainer = input => {
       // Theme the native outer surface instead of the inner editor root. Styling the editor
       // itself adds a second rounded panel that can clip placeholder text and attachments.
-      const explicit = input.closest('.composer-surface-chrome,[data-testid*="composer"],form');
+      const explicit = input.closest('.composer-surface-chrome,[data-testid*="composer" i],form,[role="form"]');
       if (explicit) return explicit;
       let node = input.parentElement;
       for (let depth = 0; node && depth < 5; depth += 1, node = node.parentElement) {
@@ -341,6 +348,13 @@ export function injectionExpression(theme, { demoMode = false } = {}) {
         if (rect.width >= 320 && rect.height >= 48 && rect.height <= 260) return node;
       }
       return input.parentElement;
+    };
+    const composerScore = input => {
+      // Capability signals survive generated-class and editor-engine changes. Prefer an editor
+      // related to a composer/form, then use viewport position only as a deterministic fallback.
+      const related = input.closest('.composer-surface-chrome,[data-testid*="composer" i],form,[role="form"]');
+      const semantic = input.matches('[role="textbox"],[contenteditable]:not([contenteditable="false" i])');
+      return (related ? 1_000_000 : 0) + (semantic ? 10_000 : 0) + input.getBoundingClientRect().bottom;
     };
     const decorate = () => {
       for (const node of tagged) if (node.isConnected) delete node.dataset.ctsRole;
@@ -353,7 +367,7 @@ export function injectionExpression(theme, { demoMode = false } = {}) {
       const main = [...document.querySelectorAll('main,[role="main"]')].find(visible)
         || (isSettings ? document.body : null);
       const inputs = [...document.querySelectorAll(next.selectors.composerInput.join(','))].filter(visible);
-      const input = inputs.sort((a, b) => b.getBoundingClientRect().bottom - a.getBoundingClientRect().bottom)[0];
+      const input = inputs.sort((a, b) => composerScore(b) - composerScore(a))[0];
       const composer = input ? composerContainer(input) : null;
       tag(sidebar, 'sidebar');
       tag(main, 'main');
@@ -436,7 +450,15 @@ export function injectionExpression(theme, { demoMode = false } = {}) {
     const observer = new MutationObserver(records => {
       if (structuralMutation(records)) schedule();
     });
-    observer.observe(appRoot, { childList: true, subtree: true });
+    // React can promote an already-mounted editor node into a textbox by changing only semantic
+    // attributes. Observe that narrow attribute set so the composer is retagged without reacting
+    // to streaming text, generated classes, or style animation churn.
+    observer.observe(appRoot, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['role', 'contenteditable', 'data-testid', 'disabled', 'aria-disabled'],
+    });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'data-appearance'] });
     const syncPaused = () => {
       root.dataset.ctsPaused = String(document.hidden || !document.hasFocus());
