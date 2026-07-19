@@ -1,0 +1,13 @@
+#!/bin/sh
+set -u
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+
+# The AppleScript app starts this helper with nohup and exits immediately. Keep the potentially
+# long restart/verification workflow off AppKit's main thread, then report only a generic result;
+# the runtime log already contains the stable, privacy-safe error code for diagnostics.
+if "$SCRIPT_DIR/cts" enable --confirmed >/dev/null 2>&1; then
+  /usr/bin/osascript -e 'display notification "主题模式已启用，已恢复保存的主题。" with title "Theme Studio for Codex"' >/dev/null 2>&1 || true
+else
+  /usr/bin/osascript -e 'display notification "主题模式启用失败。请在 ChatGPT 中说：检查主题。" with title "Theme Studio for Codex"' >/dev/null 2>&1 || true
+fi

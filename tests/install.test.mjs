@@ -37,6 +37,8 @@ test('install is isolated and preserves the user theme directory', async t => {
   assert.equal(await fs.readFile(userMarker, 'utf8'), 'mine');
   assert.ok(await fs.stat(path.join(installRoot, 'runtime/src/cli.mjs')));
   assert.ok(await fs.stat(path.join(installRoot, 'runtime/bin/theme-watcher.sh')));
+  const launcherHelper = await fs.stat(path.join(installRoot, 'scripts/launcher-enable'));
+  assert.ok(launcherHelper.mode & 0o100);
 });
 
 test('update gives an ambiguous empty legacy state a launcher-only default fallback', async t => {
