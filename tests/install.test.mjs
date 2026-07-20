@@ -119,6 +119,37 @@ test('repository readmes provide reciprocal language navigation and core guidanc
   assert.match(english, /Not affiliated with or endorsed by OpenAI/);
 });
 
+test('public installation guides identify the Marketplace and provide a deterministic CLI fallback', async () => {
+  const guidePaths = [
+    '../README.md',
+    '../README.en.md',
+    '../docs/INSTALL.zh-CN.md',
+    '../docs/INSTALL.md',
+  ];
+  const guides = await Promise.all(guidePaths.map(async relativePath => ({
+    relativePath,
+    content: await fs.readFile(fileURLToPath(new URL(relativePath, import.meta.url)), 'utf8'),
+  })));
+
+  for (const guide of guides) {
+    assert.match(
+      guide.content,
+      /codex plugin marketplace add ericsi-lab\/codex-theme-studio --ref main/,
+      `${guide.relativePath} is missing the Marketplace CLI fallback`,
+    );
+    assert.match(
+      guide.content,
+      /codex plugin add codex-theme-studio@codex-theme-studio/,
+      `${guide.relativePath} is missing the Plugin CLI fallback`,
+    );
+    assert.match(
+      guide.content,
+      /plugins\/codex-theme-studio\/\.codex-plugin\/plugin\.json/,
+      `${guide.relativePath} does not explain the nested plugin manifest`,
+    );
+  }
+});
+
 test('real sample capture preserves project and workspace labels', async () => {
   const captureScript = fileURLToPath(new URL('../tools/capture-real-samples.mjs', import.meta.url));
   const source = await fs.readFile(captureScript, 'utf8');
