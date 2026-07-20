@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.1.1';
 export const DEFAULT_THEME_ID = 'wan-yao-longyuan-lingji';
 export const DEFAULT_THEME_NAME = '万妖图录·龙渊灵姬';
 export const PLUGIN_ROOT = path.resolve(here, '../..');

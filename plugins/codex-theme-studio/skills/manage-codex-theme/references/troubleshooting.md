@@ -1,6 +1,6 @@
 # Troubleshooting
 
-- `UNSUPPORTED_PLATFORM`: v0.1.0 supports macOS only.
+- `UNSUPPORTED_PLATFORM`: v0.1.x supports macOS only.
 - `APP_NOT_RUNNING`, `CDP_UNAVAILABLE`, or `CDP_PROCESS_MISMATCH`: ask for explicit restart consent,
   then run `enable --confirmed`. The user should not need Terminal. Installation also creates
   `~/Applications/Theme Studio for Codex.app` as an optional one-click launcher. On a fresh
