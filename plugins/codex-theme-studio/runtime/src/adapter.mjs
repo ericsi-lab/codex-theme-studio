@@ -1,7 +1,7 @@
 import { fail } from './errors.mjs';
 import { imagePayload } from './theme.mjs';
 
-export const ADAPTER_VERSION = 14;
+export const ADAPTER_VERSION = 15;
 
 export const SELECTORS = Object.freeze({
   shell: ['#root', '[data-testid="app-shell"]', 'body'],
@@ -386,7 +386,11 @@ export function injectionExpression(theme, { demoMode = false } = {}) {
       }
       for (const suggestion of suggestions) tag(suggestion, 'suggestion');
       const isTask = !isSettings && taskMarkers.length > 0 && suggestions.length < 2;
-      root.dataset.ctsRoute = isSettings ? 'settings' : (isTask ? 'task' : 'home');
+      // Plugin, automation and other shell pages intentionally omit the composer. They still own
+      // a verified main surface plus native navigation, so model them explicitly instead of
+      // letting verification restore the theme every time the user leaves home/task composition.
+      const isShell = !isSettings && !isTask && Boolean(main && sidebar && !composer);
+      root.dataset.ctsRoute = isSettings ? 'settings' : (isTask ? 'task' : (isShell ? 'shell' : 'home'));
 
       if (main && composer) {
         const composerRect = composer.getBoundingClientRect();
@@ -537,10 +541,18 @@ export function verifyExpression(themeId = null, fingerprint = null, demoMode = 
       .filter(visible).length;
     const pointerSafe = Boolean(bg) && getComputedStyle(bg).pointerEvents === 'none';
     const route = document.documentElement.dataset.ctsRoute || null;
-    const routeSupported = route === 'home' || route === 'task' || route === 'settings';
+    const routeSupported = route === 'home' || route === 'task' || route === 'settings' || route === 'shell';
+    const navigationControlCount = [...document.querySelectorAll(
+      '[data-cts-role="main"] :is(button,[role="button"],a,[role="link"]),'
+      + '[data-cts-role="sidebar"] :is(button,[role="button"],a,[role="link"])',
+    )].filter(visible).length;
     const interactive = route === 'settings'
       ? mainTagged && settingsControlCount >= 2
-      : mainTagged && composerTagged;
+      : route === 'shell'
+        ? mainTagged && navigationControlCount >= 1
+        : route === 'task'
+          ? mainTagged && (composerTagged || navigationControlCount >= 1)
+          : mainTagged && composerTagged;
     const semanticReady = Boolean(getComputedStyle(document.body).getPropertyValue('--color-token-text-primary').trim());
     const privateTextSelector = ${serialized(SELECTORS.privateText.join(','))};
     const privateTextReady = [...document.querySelectorAll(privateTextSelector)]
@@ -580,6 +592,7 @@ export function verifyExpression(themeId = null, fingerprint = null, demoMode = 
       mainTagged,
       composerTagged,
       settingsControlCount,
+      navigationControlCount,
       interactive,
       pointerSafe,
       routeSupported,

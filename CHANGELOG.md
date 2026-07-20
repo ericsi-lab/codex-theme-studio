@@ -29,6 +29,9 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - The launcher no longer blocks its AppKit main thread while the restart command runs. It exits
   immediately after confirmation, completes activation in a detached helper, and posts the final
   success or failure as a notification instead of becoming an unresponsive confirmation window.
+- Plugin, automation and other composer-free shell pages now have an explicit adapter route and
+  verify through their native navigation controls. The watcher no longer restores a healthy themed
+  renderer merely because the user navigated away from a composer page.
 - Hidden pages now receive one initial decoration pass, one incomplete auxiliary renderer no
   longer deactivates healthy pages, and watcher verification failures retain the selected theme
   with bounded retry backoff instead of making recovery impossible.

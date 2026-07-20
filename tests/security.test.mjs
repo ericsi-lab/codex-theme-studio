@@ -171,12 +171,30 @@ test('adapter injection and restore expressions are parseable', () => {
   assert.match(verify, /styleCount === 1/);
   assert.match(verify, /mainTagged/);
   assert.match(verify, /composerTagged/);
+  assert.match(verify, /route === 'shell'/);
+  assert.match(verify, /navigationControlCount >= 1/);
+  assert.match(verify, /composerTagged \|\| navigationControlCount >= 1/);
   assert.match(verify, /semanticReady/);
   assert.match(verify, /runtime\?\.fingerprint === "fingerprint-1"/);
 
   const demoVerify = verifyExpression('test-theme', 'fingerprint-1', true);
   assert.match(demoVerify, /root\.dataset\.ctsDemo === 'true' && privateTextReady/);
   assert.match(demoVerify, /&& privacyReady/);
+});
+
+test('plugin and automation shell routes do not require a composer', () => {
+  const expression = injectionExpression({
+    id: 'shell-fixture-theme',
+    name: 'Shell Fixture',
+    appearance: 'dark',
+    fingerprint: 'shell-fixture-fingerprint',
+    colors: { accent: '#72D6C9', surface: '#101820CC', text: '#F4F7F6', mutedText: '#C2CECB', overlay: '#07110E66' },
+    art: { focusX: 0.8, focusY: 0.5, safeArea: 0.55, safeSide: 'left', homeMode: 'hero', taskMode: 'ambient' },
+    effects: { preset: 'none', intensity: 0, motion: false },
+    image: { mime: 'image/png', buffer: Buffer.from('png') },
+  });
+  assert.match(expression, /const isShell = !isSettings && !isTask && Boolean\(main && sidebar && !composer\)/);
+  assert.match(expression, /isShell \? 'shell' : 'home'/);
 });
 
 test('adapter keeps centralized interactive selectors', () => {
