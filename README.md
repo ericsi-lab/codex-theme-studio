@@ -46,9 +46,9 @@ Theme Studio for Codex 是一款自研、开源、默认无遥测的 ChatGPT 桌
 对第一次使用的人，可以在允许本地命令和 GitHub 访问的 Codex 新任务中发送：
 
 ```text
-安装这个主题插件：https://github.com/ericsi-lab/codex-theme-studio
-如果尚未配置 Marketplace，请将 ericsi-lab/codex-theme-studio 的 main 分支添加为
-Codex Plugin Marketplace，再安装 codex-theme-studio。
+请将 https://github.com/ericsi-lab/codex-theme-studio 的 main 分支添加为
+Codex Plugin Marketplace，并从这个 Marketplace 安装 codex-theme-studio。
+这是 Marketplace 仓库，不要把仓库根目录当成直接插件目录。
 不要让我打开终端；需要重启 ChatGPT 时先询问我。
 安装后请告诉我：是否成功、启动器在哪里、是否必须打开，以及默认主题是否生效。
 ```
@@ -56,6 +56,17 @@ Codex Plugin Marketplace，再安装 codex-theme-studio。
 这是 Codex 代为添加 Marketplace、安装 Plugin 和本地运行时的代理流程，不是 GitHub
 链接本身具有静默安装权限；企业策略或本地审批可能阻止代理安装。确定性安装入口仍是
 Codex 的 Plugins Directory 或已配置的 Marketplace。
+
+如果代理安装没有正确识别 Marketplace，可以使用 Codex 官方 CLI 完成同一安装：
+
+```sh
+codex plugin marketplace add ericsi-lab/codex-theme-studio --ref main
+codex plugin add codex-theme-studio@codex-theme-studio
+```
+
+然后新建一个任务，说“安装主题”。仓库根目录提供 `.agents/plugins/marketplace.json`，
+实际插件清单位于 `plugins/codex-theme-studio/.codex-plugin/plugin.json`，因此不要在仓库
+根目录查找 `.codex-plugin/plugin.json`。
 
 也可以手动安装：在 Codex 的 Plugins 页面添加本仓库作为 Marketplace，安装
 **Theme Studio for Codex**，然后在新任务中说“安装主题”。
