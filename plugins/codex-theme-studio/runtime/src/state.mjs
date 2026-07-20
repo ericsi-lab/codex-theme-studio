@@ -6,6 +6,8 @@ const EMPTY_STATE = Object.freeze({
   version: 1,
   onboardingVersion: 0,
   activeTheme: null,
+  preferredTheme: null,
+  appearanceRestored: false,
   defaultThemeApplied: false,
   demoMode: false,
   watchFailureCount: 0,

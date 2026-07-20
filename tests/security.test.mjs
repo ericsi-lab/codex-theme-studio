@@ -20,14 +20,17 @@ import {
   designatedRequirementMatches,
   identityCacheMatches,
   enableThemeMode,
+  processCommandMatchesExecutable,
   restartCommand,
   runningSignatureMatches,
+  waitForThemeModeRuntime,
 } from '../plugins/codex-theme-studio/runtime/src/system.mjs';
 import {
   activationThemeForState,
   LAUNCHER_BUNDLE_IDENTIFIER,
   launcherAppleScript,
   partitionThemeVerificationResults,
+  waitForThemeActivationPage,
   waitForStableThemeVerification,
   watchRetryDelay,
 } from '../plugins/codex-theme-studio/runtime/src/operations.mjs';
@@ -43,6 +46,58 @@ test('accepts loopback CDP URLs only', () => {
   assert.equal(validateLoopbackUrl('ws://[::1]:9222/devtools/page/a', ['ws:']).hostname, '[::1]');
   assert.throws(() => validateLoopbackUrl('http://0.0.0.0:9222'), error => error.code === 'CDP_NOT_LOOPBACK');
   assert.throws(() => validateLoopbackUrl('https://example.com'), error => error.code === 'CDP_INVALID_URL');
+});
+
+test('process identity requires the official executable to start the command', () => {
+  const executable = '/Applications/ChatGPT.app/Contents/MacOS/ChatGPT';
+  assert.equal(processCommandMatchesExecutable(`${executable} --remote-debugging-port=9222`, executable), true);
+  assert.equal(processCommandMatchesExecutable(executable, executable), true);
+  assert.equal(processCommandMatchesExecutable(`/bin/zsh -c inspect ${executable}`, executable), false);
+  assert.equal(processCommandMatchesExecutable('/tmp/ChatGPT --remote-debugging-port=9222', executable), false);
+});
+
+test('theme-mode runtime health retries transient startup failures only', async () => {
+  const statuses = [
+    Object.assign(new Error('transport pending'), { code: 'CDP_UNAVAILABLE' }),
+    Object.assign(new Error('page pending'), { code: 'TARGET_IDENTITY_FAILED' }),
+    { ok: true },
+  ];
+  const delays = [];
+  const result = await waitForThemeModeRuntime(
+    async () => {
+      const status = statuses.shift();
+      if (status instanceof Error) throw status;
+      return status;
+    },
+    { attempts: 4, delayMs: 25, delay: async milliseconds => delays.push(milliseconds) },
+  );
+  assert.deepEqual(result, { ok: true });
+  assert.deepEqual(delays, [25, 25]);
+
+  await assert.rejects(
+    waitForThemeModeRuntime(
+      async () => { throw Object.assign(new Error('signature'), { code: 'APP_IDENTITY_FAILED' }); },
+      { delay: async () => assert.fail('must not retry identity failures') },
+    ),
+    error => error.code === 'APP_IDENTITY_FAILED',
+  );
+});
+
+test('launcher waits for a semantic app page after CDP becomes reachable', async () => {
+  let attempt = 0;
+  const delays = [];
+  const result = await waitForThemeActivationPage({
+    attempts: 4,
+    delayMs: 25,
+    delay: async milliseconds => delays.push(milliseconds),
+    probe: async () => {
+      attempt += 1;
+      if (attempt < 3) throw Object.assign(new Error('helper target only'), { code: 'TARGET_IDENTITY_FAILED' });
+      return ['home'];
+    },
+  });
+  assert.deepEqual(result, ['home']);
+  assert.deepEqual(delays, [25, 25]);
 });
 
 test('skips internal app targets that fail page identity while keeping eligible pages', async () => {
@@ -96,7 +151,9 @@ test('adapter injection and restore expressions are parseable', () => {
   assert.match(expression, /--color-background-elevated-primary:var\(--cts-elevated\)/);
   assert.match(expression, /--vscode-menu-background:var\(--cts-elevated\)/);
   assert.match(expression, /html\.cts-theme body,html\.cts-theme #root\{--cts-panel-solid:/);
-  assert.match(expression, /\.composer-surface-chrome,\[data-testid\*="composer"\],form/);
+  assert.match(expression, /\.composer-surface-chrome,\[data-testid\*="composer" i\],form,\[role="form"\]/);
+  assert.match(expression, /const composerScore = input/);
+  assert.match(expression, /attributeFilter: \['role', 'contenteditable', 'data-testid', 'disabled', 'aria-disabled'\]/);
   assert.match(expression, /\.app-theme:has\(\.xterm\)/);
   assert.match(expression, /--vscode-terminal-background:var\(--cts-panel-solid\)!important/);
   assert.match(expression, /\.xterm-rows\{color:var\(--cts-text\)!important/);
@@ -114,6 +171,9 @@ test('adapter injection and restore expressions are parseable', () => {
   assert.match(verify, /styleCount === 1/);
   assert.match(verify, /mainTagged/);
   assert.match(verify, /composerTagged/);
+  assert.match(verify, /route === 'shell'/);
+  assert.match(verify, /navigationControlCount >= 1/);
+  assert.match(verify, /composerTagged \|\| navigationControlCount >= 1/);
   assert.match(verify, /semanticReady/);
   assert.match(verify, /runtime\?\.fingerprint === "fingerprint-1"/);
 
@@ -122,12 +182,54 @@ test('adapter injection and restore expressions are parseable', () => {
   assert.match(demoVerify, /&& privacyReady/);
 });
 
+test('plugin and automation shell routes do not require a composer', () => {
+  const expression = injectionExpression({
+    id: 'shell-fixture-theme',
+    name: 'Shell Fixture',
+    appearance: 'dark',
+    fingerprint: 'shell-fixture-fingerprint',
+    colors: { accent: '#72D6C9', surface: '#101820CC', text: '#F4F7F6', mutedText: '#C2CECB', overlay: '#07110E66' },
+    art: { focusX: 0.8, focusY: 0.5, safeArea: 0.55, safeSide: 'left', homeMode: 'hero', taskMode: 'ambient' },
+    effects: { preset: 'none', intensity: 0, motion: false },
+    image: { mime: 'image/png', buffer: Buffer.from('png') },
+  });
+  assert.match(expression, /const isShell = !isSettings && !isTask && Boolean\(main && sidebar && !composer\)/);
+  assert.match(expression, /isShell \? 'shell' : 'home'/);
+});
+
 test('adapter keeps centralized interactive selectors', () => {
   assert.ok(SELECTORS.sidebar.length >= 2);
   assert.ok(SELECTORS.composerInput.includes('textarea'));
+  assert.ok(SELECTORS.composerInput.includes('[role="textbox"]'));
+  assert.ok(SELECTORS.composerInput.includes('[contenteditable]:not([contenteditable="false" i])'));
   assert.ok(SELECTORS.taskContent.includes('[data-thread-find-target="conversation"]'));
   assert.ok(SELECTORS.settingsControl.includes('[role="switch"]'));
   assert.equal(SELECTORS.privateSurface, undefined);
+});
+
+test('current ChatGPT home and task composer variants remain discoverable by capability', async () => {
+  const fixturePath = fileURLToPath(new URL('./fixtures/chatgpt-26.715.31925-composer.json', import.meta.url));
+  const fixture = JSON.parse(await fs.readFile(fixturePath, 'utf8'));
+  const task = fixture.variants.find(variant => variant.route === 'task');
+  const home = fixture.variants.find(variant => variant.route === 'home');
+  assert.equal(task.input.tagName, 'DIV');
+  assert.equal(task.input.attributes.contenteditable, 'true');
+  assert.equal(home.input.tagName, 'TEXTAREA');
+  assert.ok(SELECTORS.composerInput.includes('textarea'));
+  assert.ok(SELECTORS.composerInput.some(selector => selector.includes('[contenteditable]:not(')));
+
+  const expression = injectionExpression({
+    id: 'fixture-theme',
+    name: 'Fixture',
+    appearance: 'dark',
+    fingerprint: 'fixture-fingerprint',
+    colors: { accent: '#72D6C9', surface: '#101820CC', text: '#F4F7F6', mutedText: '#C2CECB', overlay: '#07110E66' },
+    art: { focusX: 0.8, focusY: 0.5, safeArea: 0.55, safeSide: 'left', homeMode: 'hero', taskMode: 'ambient' },
+    effects: { preset: 'none', intensity: 0, motion: false },
+    image: { mime: 'image/png', buffer: Buffer.from('png') },
+  });
+  assert.match(expression, /\[data-testid\*="composer" i\]/);
+  assert.match(expression, /composerScore\(b\) - composerScore\(a\)/);
 });
 
 test('restart command supports current ChatGPT and legacy Codex names', () => {
@@ -143,8 +245,21 @@ test('launcher copy is accurate for both current ChatGPT and legacy Codex', () =
   assert.match(source, /with title "Theme Studio for Codex"/);
   assert.match(source, /万妖图录·龙渊灵姬/);
   assert.match(source, /首次启用/);
+  assert.match(source, /\/usr\/bin\/nohup/);
+  assert.match(source, /<\/dev\/null >\/dev\/null 2>&1 &/);
+  assert.match(source, /正在后台启用主题模式/);
+  assert.doesNotMatch(source, /enable --confirmed/);
   assert.doesNotMatch(source, /安全重启 ChatGPT 并/);
   assert.doesNotMatch(source, /with title "Codex Theme Studio"/);
+});
+
+test('launcher helper reports completion after running the deterministic wrapper', async () => {
+  const helperPath = fileURLToPath(new URL('../plugins/codex-theme-studio/scripts/launcher-enable', import.meta.url));
+  const source = await fs.readFile(helperPath, 'utf8');
+  assert.match(source, /"\$SCRIPT_DIR\/cts" enable --confirmed/);
+  assert.match(source, /主题模式已启用/);
+  assert.match(source, /主题模式启用失败/);
+  assert.doesNotMatch(source, /\/Applications\/ChatGPT\.app/);
 });
 
 test('launcher AppleScript remains compilable after onboarding copy changes', async t => {
@@ -176,22 +291,34 @@ test('launcher bundle identifier belongs to the publishing repository', () => {
   );
 });
 
-test('theme-mode activation uses a requested theme, current theme, then one-time default', () => {
+test('theme-mode activation restores active and saved themes before using the default', () => {
   assert.deepEqual(
-    activationThemeForState({ activeTheme: 'fortune-guardian', defaultThemeApplied: false }, 'aurora-glass'),
+    activationThemeForState({ activeTheme: 'fortune-guardian' }, 'aurora-glass'),
     { id: 'aurora-glass', source: 'requested' },
   );
   assert.deepEqual(
-    activationThemeForState({ activeTheme: 'fortune-guardian', defaultThemeApplied: false }),
+    activationThemeForState({ activeTheme: 'fortune-guardian' }),
     { id: 'fortune-guardian', source: 'active' },
   );
   assert.deepEqual(
-    activationThemeForState({ activeTheme: null, defaultThemeApplied: false }),
+    activationThemeForState({ activeTheme: null, preferredTheme: 'fortune-guardian' }),
+    { id: 'fortune-guardian', source: 'preferred' },
+  );
+  assert.deepEqual(
+    activationThemeForState({ activeTheme: null, defaultThemeApplied: true }),
     { id: 'wan-yao-longyuan-lingji', source: 'default' },
   );
   assert.equal(
-    activationThemeForState({ activeTheme: null, defaultThemeApplied: true }),
+    activationThemeForState({
+      activeTheme: null,
+      preferredTheme: 'fortune-guardian',
+      appearanceRestored: true,
+    }),
     null,
+  );
+  assert.deepEqual(
+    activationThemeForState({ appearanceRestored: true }, 'aurora-glass'),
+    { id: 'aurora-glass', source: 'requested' },
   );
 });
 
@@ -344,6 +471,23 @@ test('watcher waits for transient route structure and accepts the first stable v
   );
   assert.equal(result.ok, true);
   assert.deepEqual(delays, [25, 25]);
+});
+
+test('apply verification uses the bounded stabilization window before rollback', async () => {
+  const operationsPath = fileURLToPath(new URL('../plugins/codex-theme-studio/runtime/src/operations.mjs', import.meta.url));
+  const source = await fs.readFile(operationsPath, 'utf8');
+  const verify = source.slice(source.indexOf('async function verifyInjectedTheme'), source.indexOf('export async function verifyTheme'));
+  assert.match(verify, /await waitForStableThemeVerification\(/);
+  assert.ok(verify.indexOf('await waitForStableThemeVerification(') < verify.indexOf('restoreExpression()'));
+
+  const apply = source.slice(source.indexOf('export async function applyTheme'), source.indexOf('export async function previewTheme'));
+  assert.ok(apply.indexOf('await stopDaemon()') < apply.indexOf('await inject(theme, state.demoMode)'));
+  assert.match(apply, /preferredTheme: theme\.id/);
+  assert.match(apply, /appearanceRestored: false/);
+
+  const restore = source.slice(source.indexOf('export async function restore()'), source.indexOf('export async function setDemoMode'));
+  assert.match(restore, /activeTheme: null/);
+  assert.match(restore, /appearanceRestored: true/);
 });
 
 test('multiple page targets keep the selected theme when at least one page is healthy', () => {

@@ -46,6 +46,8 @@ const WATCHER_SCRIPT = path.join(INSTALL_ROOT, 'runtime/bin/theme-watcher.sh');
 const RUNTIME_LOG = path.join(LOG_DIR, 'runtime.log');
 const WATCH_VERIFY_ATTEMPTS = 8;
 const WATCH_VERIFY_DELAY_MS = 250;
+const ACTIVATION_READY_ATTEMPTS = 40;
+const ACTIVATION_READY_DELAY_MS = 250;
 const WATCH_RETRY_BASE_MS = 30_000;
 const WATCH_RETRY_MAX_MS = 5 * 60_000;
 export const LAUNCHER_BUNDLE_IDENTIFIER = 'io.github.ericsi-lab.theme-studio-for-codex.launcher';
@@ -80,7 +82,7 @@ function appleScriptString(value) {
  * The launcher delegates application selection to the verified runtime so the same generated app
  * remains accurate for current ChatGPT and legacy Codex installations.
  *
- * @param {string} command Absolute path to the installed deterministic CLI wrapper.
+ * @param {string} command Absolute path to the installed detached launcher helper.
  * @returns {string} AppleScript source compiled into the user-owned launcher application.
  */
 export function launcherAppleScript(command) {
@@ -88,10 +90,10 @@ export function launcherAppleScript(command) {
     'on run',
     `  display dialog "将安全重启 ChatGPT 或旧版 Codex，并启用本机主题模式。首次启用会自动应用《${DEFAULT_THEME_NAME}》，以后会保留你的选择。不会修改官方应用。" buttons {"取消", "启用主题模式"} default button "启用主题模式" with title "Theme Studio for Codex"`,
     '  try',
-    `    do shell script quoted form of "${appleScriptString(command)}" & " enable --confirmed"`,
-    `    display notification "主题模式已启用。新安装会应用${DEFAULT_THEME_NAME}；已有选择或原始界面保持不变。" with title "Theme Studio for Codex"`,
+    `    do shell script "/usr/bin/nohup " & quoted form of "${appleScriptString(command)}" & " </dev/null >/dev/null 2>&1 &"`,
+    '    display notification "正在后台启用主题模式；Theme Studio 会立即退出。" with title "Theme Studio for Codex"',
     '  on error',
-    '    display dialog "启用失败。请回到官方桌面应用说：检查主题。" buttons {"好"} default button "好" with title "Theme Studio for Codex"',
+    '    display dialog "后台任务未能启动。请回到官方桌面应用说：检查主题。" buttons {"好"} default button "好" with title "Theme Studio for Codex"',
     '  end try',
     'end run',
     '',
@@ -224,7 +226,7 @@ async function installLauncher() {
   if (existing && !managed) fail('LAUNCHER_CONFLICT', 'An unrelated Theme Studio for Codex.app already exists.');
   const legacyManaged = Boolean(await fs.stat(LEGACY_LAUNCHER_MARKER).catch(() => null));
 
-  const command = path.join(INSTALL_ROOT, 'scripts', 'cts');
+  const command = path.join(INSTALL_ROOT, 'scripts', 'launcher-enable');
   const source = launcherAppleScript(command);
   const sourceFile = path.join(STATE_DIR, `launcher-${process.pid}.applescript`);
   const stagedApp = path.join(STATE_DIR, `launcher-${process.pid}.app`);
@@ -268,9 +270,16 @@ export async function install() {
   const freshInstall = !previousState.installedVersion;
   const legacyInstallation = Boolean(previousState.installedVersion)
     && previousState.onboardingVersion < 1;
+  // Older runtimes could clear activeTheme after a transient verification failure. Preserve any
+  // surviving selection separately; an ambiguous empty legacy state may safely fall back to the
+  // featured theme only when the user explicitly opens the Theme Studio launcher.
+  const preferredTheme = previousState.preferredTheme || previousState.activeTheme || null;
+  const appearanceRestored = previousState.appearanceRestored === true;
   const nextState = await updateState({
     installedVersion: VERSION,
     onboardingVersion: 1,
+    preferredTheme,
+    appearanceRestored,
     // Existing users keep their current/restored appearance after an upgrade. Only a genuinely
     // fresh installation receives the featured theme on its first theme-mode activation.
     ...(freshInstall ? { defaultThemeApplied: false } : {}),
@@ -289,7 +298,8 @@ export async function install() {
       defaultTheme: {
         id: DEFAULT_THEME_ID,
         name: DEFAULT_THEME_NAME,
-        appliesOnFirstThemeModeActivation: !nextState.defaultThemeApplied && !nextState.activeTheme,
+        appliesOnFirstThemeModeActivation:
+          activationThemeForState(nextState)?.source === 'default',
       },
       nextAction: launcher.installed
         ? `Open ~/Applications/${path.basename(LAUNCHER_APP)} once, or approve theme mode in this task.`
@@ -470,20 +480,55 @@ export async function startDaemon() {
 /**
  * Selects the theme that should be restored or applied when theme mode starts.
  *
- * A theme explicitly requested by the user always wins. Otherwise an existing active theme is
- * restored. The featured default is selected only once for a fresh installation; after the user
- * restores the original appearance, later launcher opens must not silently reapply it.
+ * A theme explicitly requested by the user always wins. Otherwise an existing active or saved
+ * preference is restored. An explicit restore remains authoritative, while an empty legacy state
+ * falls back to the featured theme when the user deliberately opens Theme Studio again.
  *
  * @param {object} state Persisted local theme state; missing optional fields use safe defaults.
  * @param {string|null} requestedThemeId Theme chosen in the current user request, if any.
- * @returns {{id: string, source: 'requested'|'active'|'default'}|null} Activation target or null
- * when theme mode should start without applying a theme.
+ * @returns {{id: string, source: 'requested'|'active'|'preferred'|'default'}|null} Activation
+ * target, or null when the user explicitly chose to keep the original appearance.
  */
 export function activationThemeForState(state, requestedThemeId = null) {
   if (requestedThemeId) return { id: requestedThemeId, source: 'requested' };
   if (state?.activeTheme) return { id: state.activeTheme, source: 'active' };
-  if (!state?.defaultThemeApplied) return { id: DEFAULT_THEME_ID, source: 'default' };
-  return null;
+  if (state?.appearanceRestored) return null;
+  if (state?.preferredTheme) return { id: state.preferredTheme, source: 'preferred' };
+  return { id: DEFAULT_THEME_ID, source: 'default' };
+}
+
+/**
+ * Waits for a normal home/task/settings renderer before launcher activation applies a theme.
+ *
+ * CDP can expose internal helper targets before React mounts a usable page. Doctor intentionally
+ * verifies only process and transport identity, so activation adds this bounded semantic readiness
+ * gate rather than failing the whole launcher operation on the first helper-only target list.
+ *
+ * @param {{attempts?: number, delayMs?: number, delay?: (ms: number) => Promise<void>, probe?: () => Promise<unknown>}} options
+ * Bounded readiness controls; tests inject probe and delay functions.
+ * @returns {Promise<unknown>} First successful page-identity probe result.
+ * @throws {Error} Last readiness error after the bounded window.
+ */
+export async function waitForThemeActivationPage({
+  attempts = ACTIVATION_READY_ATTEMPTS,
+  delayMs = ACTIVATION_READY_DELAY_MS,
+  delay = ms => new Promise(resolve => setTimeout(resolve, ms)),
+  probe = () => withCodexPages(async session => {
+    await assertPageIdentity(session);
+    return true;
+  }),
+} = {}) {
+  let lastError;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await probe();
+    } catch (error) {
+      if (!['CDP_UNAVAILABLE', 'TARGET_IDENTITY_FAILED'].includes(error?.code)) throw error;
+      lastError = error;
+      if (attempt + 1 < attempts) await delay(delayMs);
+    }
+  }
+  throw lastError;
 }
 
 /**
@@ -498,13 +543,25 @@ export function activationThemeForState(state, requestedThemeId = null) {
  * optional theme ID resolved from the user's current request.
  * @returns {Promise<object>} Sanitized runtime and applied-theme status for user-facing feedback.
  */
-export async function activateThemeMode({ confirmed = false, requestedThemeId = null } = {}) {
+export async function activateThemeMode(options = {}) {
+  try {
+    return await activateThemeModeUnchecked(options);
+  } catch (error) {
+    // Persist only a stable code so launcher failures remain diagnosable without recording page
+    // text, task names, usernames, shell output, or absolute paths.
+    await appendRuntimeEvent(`ENABLE_${error?.code || 'UNEXPECTED_ERROR'}`);
+    throw error;
+  }
+}
+
+async function activateThemeModeUnchecked({ confirmed = false, requestedThemeId = null } = {}) {
   // Validate an explicit choice before restarting the desktop app so a typo cannot cause an
   // unnecessary interruption and then fail only after ChatGPT returns.
   if (requestedThemeId && !TEST_MODE) {
     await findTheme(requestedThemeId, { loadImage: false });
   }
   const runtime = await enableThemeMode({ confirmed });
+  if (!TEST_MODE) await waitForThemeActivationPage();
   const state = await readState();
   const target = activationThemeForState(state, requestedThemeId);
   if (!target || TEST_MODE) {
@@ -525,7 +582,7 @@ export async function activateThemeMode({ confirmed = false, requestedThemeId = 
     pages: applied.pages,
     watcher: applied.watcher,
     defaultThemeApplied: target.source === 'default',
-    restoredActiveTheme: target.source === 'active',
+    restoredActiveTheme: ['active', 'preferred'].includes(target.source),
   };
 }
 
@@ -534,6 +591,9 @@ export async function applyTheme(id, { daemon = true } = {}) {
   const state = await readState();
   let pages;
   try {
+    // The resident watcher may still run an older installed adapter during an update. Stop it
+    // before injection so it cannot replace a freshly tagged composer during apply verification.
+    await stopDaemon();
     await inject(theme, state.demoMode);
     pages = await verifyInjectedTheme(theme, state.demoMode);
   } catch (error) {
@@ -549,10 +609,13 @@ export async function applyTheme(id, { daemon = true } = {}) {
     });
     throw error;
   }
-  // Any permanent user choice consumes the one-time featured default. A later restore therefore
-  // remains respected instead of causing the launcher to reapply 龙渊灵姬 on its next open.
+  // Keep the desired theme independently from the current renderer state. This lets the launcher
+  // restore the same choice after ChatGPT exits, while appearanceRestored still records an
+  // explicit request to keep the official appearance.
   await updateState({
     activeTheme: theme.id,
+    preferredTheme: theme.id,
+    appearanceRestored: false,
     defaultThemeApplied: true,
     watchFailureCount: 0,
     watchRetryAt: null,
@@ -619,7 +682,13 @@ async function verifyInjectedTheme(theme, demoMode = null) {
   const fingerprint = typeof theme === 'string' ? null : theme.fingerprint;
   const results = await withCodexPages(async session => {
     await assertPageIdentity(session);
-    const result = await session.evaluate(verifyExpression(themeId, fingerprint, demoMode));
+    // Apply/preview can race a React replacement of the composer immediately after injection.
+    // Use the same bounded stabilization window as the watcher before declaring incompatibility.
+    const result = await waitForStableThemeVerification(
+      session,
+      { id: themeId, fingerprint },
+      demoMode,
+    );
     // One auxiliary or hidden renderer must not restore otherwise healthy Codex pages. Clean up
     // only the incomplete target here, then decide success from the aggregate below.
     if (!result?.ok) await session.evaluate(restoreExpression()).catch(() => true);
@@ -696,6 +765,7 @@ export async function restore() {
   const pages = await restorePages();
   await updateState({
     activeTheme: null,
+    appearanceRestored: true,
     demoMode: false,
     watchFailureCount: 0,
     watchRetryAt: null,
@@ -861,6 +931,8 @@ export async function watchCycle() {
       await restorePages({ alreadyVerified: true }).catch(() => []);
       await updateState({
         activeTheme: null,
+        preferredTheme: null,
+        appearanceRestored: false,
         demoMode: false,
         watchFailureCount: 0,
         watchRetryAt: null,

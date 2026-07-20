@@ -37,9 +37,11 @@ test('install is isolated and preserves the user theme directory', async t => {
   assert.equal(await fs.readFile(userMarker, 'utf8'), 'mine');
   assert.ok(await fs.stat(path.join(installRoot, 'runtime/src/cli.mjs')));
   assert.ok(await fs.stat(path.join(installRoot, 'runtime/bin/theme-watcher.sh')));
+  const launcherHelper = await fs.stat(path.join(installRoot, 'scripts/launcher-enable'));
+  assert.ok(launcherHelper.mode & 0o100);
 });
 
-test('update preserves an existing user decision about the one-time default theme', async t => {
+test('update gives an ambiguous empty legacy state a launcher-only default fallback', async t => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'cts-update-'));
   const installRoot = path.join(root, 'runtime');
   const dataRoot = path.join(root, 'data');
@@ -61,8 +63,10 @@ test('update preserves an existing user decision about the one-time default them
   const installation = JSON.parse(result.stdout);
   const state = JSON.parse(await fs.readFile(stateFile, 'utf8'));
   assert.equal(installation.onboarding.freshInstall, false);
-  assert.equal(installation.onboarding.defaultTheme.appliesOnFirstThemeModeActivation, false);
+  assert.equal(installation.onboarding.defaultTheme.appliesOnFirstThemeModeActivation, true);
   assert.equal(state.defaultThemeApplied, true);
+  assert.equal(state.preferredTheme, null);
+  assert.equal(state.appearanceRestored, false);
   assert.equal(state.onboardingVersion, 1);
 });
 
