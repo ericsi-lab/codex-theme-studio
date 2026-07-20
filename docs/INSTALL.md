@@ -1,12 +1,12 @@
 # Install Theme Studio for Codex
 
-The simplest installation is to paste the repository URL into a new Codex task and say:
+The simplest installation is to ask a new Codex task to add the Marketplace explicitly:
 
 ```text
-Install this theme plugin: https://github.com/ericsi-lab/codex-theme-studio
-If its marketplace is not configured, add the main branch of
-ericsi-lab/codex-theme-studio as a Codex Plugin Marketplace, then install
-codex-theme-studio. Do not ask me to use Terminal. Ask before restarting ChatGPT,
+Add the main branch of https://github.com/ericsi-lab/codex-theme-studio as a
+Codex Plugin Marketplace, then install codex-theme-studio from that Marketplace.
+This is a Marketplace repository; do not treat the repository root as a direct
+plugin directory. Do not ask me to use Terminal. Ask before restarting ChatGPT,
 then report installation status, launcher location, whether it is required, and
 whether the featured default theme is active.
 ```
@@ -15,6 +15,19 @@ When local commands, GitHub access and plugin installation are allowed, Codex ca
 marketplace and install the Plugin, runtime and launcher. It still asks before restarting the
 desktop app. This is an agent-assisted flow, not a silent-install protocol, and managed workspace
 policy can restrict it.
+
+If the assisted flow does not recognize the Marketplace correctly, use the official Codex CLI
+fallback:
+
+```sh
+codex plugin marketplace add ericsi-lab/codex-theme-studio --ref main
+codex plugin add codex-theme-studio@codex-theme-studio
+```
+
+Then start a new task and say “install themes.” The repository root contains
+`.agents/plugins/marketplace.json`; the actual plugin manifest is
+`plugins/codex-theme-studio/.codex-plugin/plugin.json`, so a root-level
+`.codex-plugin/plugin.json` is not expected.
 
 For manual installation, add this repository's marketplace in the ChatGPT desktop Plugins page,
 install **Theme Studio for Codex**, then start a new task and say “install themes”. Legacy

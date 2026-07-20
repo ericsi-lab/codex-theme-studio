@@ -8,6 +8,7 @@ import {
   CDP_ORIGIN,
   STATE_DIR,
   TEST_MODE,
+  VERSION,
 } from './config.mjs';
 import { getTargets, getVersion } from './cdp.mjs';
 import { fail } from './errors.mjs';
@@ -392,7 +393,7 @@ export async function enableThemeMode({ confirmed = false } = {}) {
     });
   }
   if (process.platform !== 'darwin' && !TEST_MODE) {
-    fail('UNSUPPORTED_PLATFORM', 'Theme Studio for Codex v0.1.0 supports macOS only.');
+    fail('UNSUPPORTED_PLATFORM', `Theme Studio for Codex v${VERSION} supports macOS only.`);
   }
   if (TEST_MODE) return { ok: true, restarted: false, alreadyEnabled: true, application: 'ChatGPT' };
 
@@ -442,7 +443,9 @@ export async function enableThemeMode({ confirmed = false } = {}) {
 }
 
 async function inspectRuntime({ verifySignature, requirePage }) {
-  if (process.platform !== 'darwin' && !TEST_MODE) fail('UNSUPPORTED_PLATFORM', 'Theme Studio for Codex v0.1.0 supports macOS only.');
+  if (process.platform !== 'darwin' && !TEST_MODE) {
+    fail('UNSUPPORTED_PLATFORM', `Theme Studio for Codex v${VERSION} supports macOS only.`);
+  }
   const bundle = TEST_MODE ? {
     path: '/Applications/ChatGPT.app', identifier: BUNDLE_ID, displayName: 'ChatGPT',
     executable: process.execPath, executableName: path.basename(process.execPath), version: 'test',

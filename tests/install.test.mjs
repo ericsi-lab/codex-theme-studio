@@ -5,10 +5,25 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { VERSION as runtimeVersion } from '../plugins/codex-theme-studio/runtime/src/config.mjs';
 
 const node = process.execPath;
 const cli = fileURLToPath(new URL('../plugins/codex-theme-studio/runtime/src/cli.mjs', import.meta.url));
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mNk+M/wn4GBgYGJAQoAHgQCAf2c3zQAAAAASUVORK5CYII=', 'base64');
+
+test('release versions stay aligned across package, Plugin and runtime metadata', async () => {
+  const packageJson = JSON.parse(await fs.readFile(
+    fileURLToPath(new URL('../package.json', import.meta.url)),
+    'utf8',
+  ));
+  const pluginJson = JSON.parse(await fs.readFile(
+    fileURLToPath(new URL('../plugins/codex-theme-studio/.codex-plugin/plugin.json', import.meta.url)),
+    'utf8',
+  ));
+
+  assert.equal(runtimeVersion, packageJson.version);
+  assert.equal(pluginJson.version.split('+')[0], packageJson.version);
+});
 
 test('install is isolated and preserves the user theme directory', async t => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'cts-install-'));
@@ -117,6 +132,37 @@ test('repository readmes provide reciprocal language navigation and core guidanc
   assert.match(english, /macOS only/i);
   assert.match(english, /Wan Yao Codex · Longyuan Spirit/);
   assert.match(english, /Not affiliated with or endorsed by OpenAI/);
+});
+
+test('public installation guides identify the Marketplace and provide a deterministic CLI fallback', async () => {
+  const guidePaths = [
+    '../README.md',
+    '../README.en.md',
+    '../docs/INSTALL.zh-CN.md',
+    '../docs/INSTALL.md',
+  ];
+  const guides = await Promise.all(guidePaths.map(async relativePath => ({
+    relativePath,
+    content: await fs.readFile(fileURLToPath(new URL(relativePath, import.meta.url)), 'utf8'),
+  })));
+
+  for (const guide of guides) {
+    assert.match(
+      guide.content,
+      /codex plugin marketplace add ericsi-lab\/codex-theme-studio --ref main/,
+      `${guide.relativePath} is missing the Marketplace CLI fallback`,
+    );
+    assert.match(
+      guide.content,
+      /codex plugin add codex-theme-studio@codex-theme-studio/,
+      `${guide.relativePath} is missing the Plugin CLI fallback`,
+    );
+    assert.match(
+      guide.content,
+      /plugins\/codex-theme-studio\/\.codex-plugin\/plugin\.json/,
+      `${guide.relativePath} does not explain the nested plugin manifest`,
+    );
+  }
 });
 
 test('real sample capture preserves project and workspace labels', async () => {
