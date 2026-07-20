@@ -9,7 +9,7 @@ Use the bundled deterministic command wrapper for every state-changing action. D
 
 ## Workflow
 
-1. Identify the requested operation and confirm macOS support. Windows is not supported in v0.1.0.
+1. Identify the requested operation and confirm macOS support. Windows is not supported in v0.1.x.
 2. For first use, run `scripts/cts install` and report its structured `onboarding` result in plain
    language: Plugin/runtime status, optional launcher path, whether opening it is required, the
    featured first theme, and the next action. Then run `scripts/cts doctor`. The runtime
